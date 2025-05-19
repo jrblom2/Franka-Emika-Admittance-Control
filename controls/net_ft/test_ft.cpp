@@ -5,8 +5,8 @@ int main(int argc, char** argv) {
     net_ft_driver::ft_info input;
     input.ip_address = "192.168.18.81";
     input.sensor_type = "ati_axia";
-    input.rdt_sampling_rate = 500;
-    input.use_biasing = "false";
+    input.rdt_sampling_rate = 1000;
+    input.use_biasing = "true";
     input.internal_filter_rate = 0;
 
     net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
