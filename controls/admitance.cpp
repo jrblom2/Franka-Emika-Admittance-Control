@@ -4,6 +4,7 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <string>
 
 #include <eigen3/Eigen/Dense>
 
@@ -26,14 +27,16 @@
 
 int main(int argc, char** argv) {
   // Check whether the required arguments were passed
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << std::endl;
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  "<control-calc>" << std::endl;
     return -1;
   }
 
+  std::string calc_mode{argv[2]};
+
   // Compliance parameters
-  const double translational_stiffness{0.0};
-  const double rotational_stiffness{0.0};
+  const double translational_stiffness{150.0};
+  const double rotational_stiffness{5.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -48,23 +51,40 @@ int main(int argc, char** argv) {
   net_ft_driver::ft_info input;
   input.ip_address = "192.168.18.12";
   input.sensor_type = "ati_axia";
-  input.rdt_sampling_rate = 500;
-  input.use_biasing = "false";
+  input.rdt_sampling_rate = 1000;
+  input.use_biasing = "true";
   input.internal_filter_rate = 0;
 
+  Eigen::Matrix<double, 3, 3> sensor_rotation;
+  //45 degrees clockwise
+  sensor_rotation << std::cos(M_PI_4), -std::sin(M_PI_4), 0,
+                      std::sin(M_PI_4), std::cos(M_PI_4), 0,
+                      0,                0,                1;
+  
+  Eigen::MatrixXd sensor_adjoint(6, 6);
+  sensor_adjoint.setZero();
+  sensor_adjoint.topLeftCorner(3, 3) << sensor_rotation;
+  sensor_adjoint.bottomRightCorner(3,3) << sensor_rotation;
+
   net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
+  std::cout << "Sensor started." << std::endl;
 
   try {
     // connect to robot
     franka::Robot robot(argv[1]);
     setDefaultBehavior(robot);
+
+    // First move the robot to a suitable joint configuration
+    std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
+    MotionGenerator motion_generator(0.5, q_goal);
+
+    robot.control(motion_generator);
+    std::cout << "Finished moving to initial joint configuration." << std::endl;
+
     // load the kinematics and dynamics model
     franka::Model model = robot.loadModel();
 
     franka::RobotState initial_state = robot.readOnce();
-
-    //update sensor data
-    sensor.read();
 
     // equilibrium point is the initial position
     Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
@@ -86,8 +106,12 @@ int main(int argc, char** argv) {
       std::array<double, 42> jacobian_array =
           model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
       std::array<double, 49> mass_array = model.mass(robot_state);
-
+                      
+      //update sensor data
+      sensor.read();
       std::array<double, 6> ft_reading = sensor.ft_sensor_measurements_;
+      //swap sign for gravity
+      ft_reading[2] = -ft_reading[2];
 
       // convert to Eigen
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
@@ -95,14 +119,24 @@ int main(int argc, char** argv) {
       Eigen::Map<const Eigen::Matrix<double, 7, 7>> mass(mass_array.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
-      Eigen::Map<const Eigen::Matrix<double, 6, 1>> fext(ft_reading.data());
+      Eigen::Map<Eigen::Matrix<double, 6, 1>> fext(ft_reading.data());
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
+  
+      //translate wrench from FT sensor as wrench in EE frame. MR 3.98
+      fext = sensor_adjoint.transpose() * fext;
       
       // static, set initial to current jacobian. Double check this. Is duration.toSec right?
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
-      Eigen::Matrix<double, 6, 7> djacobian = (jacobian - old_jacobian)/duration.toSec();
+      
+      Eigen::Matrix<double, 6, 7> djacobian;
+      // arbitrary cutoff for no duration, expected duration is 0.001
+      if (duration.toSec() < 0.00000001) {
+        djacobian.setZero();
+      } else {
+        djacobian = (jacobian - old_jacobian)/duration.toSec();
+      }
 
       // non static update
       old_jacobian = jacobian;
@@ -129,7 +163,7 @@ int main(int argc, char** argv) {
       // Transform to base frame
       error.tail(3) << -transform.rotation() * error.tail(3);
 
-      // ddx_d = M^-1(force - (damping*dx) - (stiffness*x)). Compute desired end effector acceleration
+      //MR 11.66
       Eigen::VectorXd ddx_d(6);
       ddx_d << alpha.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
       std::cout << "ddx: " << ddx_d << std::endl;
@@ -137,19 +171,20 @@ int main(int argc, char** argv) {
       // compute control
       Eigen::VectorXd tau_task(7), tau_d(7);
 
-      // dynamics or term replacement. Two different computions that should arrive at the same output. //TODO get either working.
-      bool use_dynamics = true;
-
-      if (use_dynamics) {
-        // ddq_d = VampireJacobian * (ddx_d - (dJacobian * dq))
+      //different methods for calcuating torque from force input, often results in same calculation but not always?
+      if (calc_mode == "JOINTACCEL") {
+        //MR 11.66
         Eigen::VectorXd ddq_d(7);
         ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
-
-        // Inverse dynamics: tau = M * ddq + compensation term (coriolis)
+        //MR 8.1
         tau_task << mass * ddq_d;
-      } else {
-        // with completed computation for external force in EE space, plug that back in for joint torques?
+      } else  if (calc_mode == "PLUGBACK") {
+        //MR 11.65
         tau_task << jacobian.transpose() * (-(alpha * ddx_d) - (damping * (jacobian * dq)) - (stiffness * error));
+      } else if (calc_mode == "SIMPLE") {
+        tau_task << jacobian.transpose() * fext;
+      } else {
+        std::cout << "Invalid control" << std::endl;
       }
 
       std::cout << "task: " << tau_task << std::endl;

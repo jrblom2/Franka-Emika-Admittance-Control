@@ -3,7 +3,7 @@
 int main(int argc, char** argv) {
 
     net_ft_driver::ft_info input;
-    input.ip_address = "192.168.18.12";
+    input.ip_address = "192.168.18.81";
     input.sensor_type = "ati_axia";
     input.rdt_sampling_rate = 500;
     input.use_biasing = "false";

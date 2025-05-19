@@ -17,6 +17,12 @@ void setDefaultBehavior(franka::Robot& robot) {
       {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}}, {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}});
   robot.setJointImpedance({{3000, 3000, 3000, 2500, 2500, 2000, 2000}});
   robot.setCartesianImpedance({{3000, 3000, 3000, 300, 300, 300}});
+  double ft_sensor_mass = 1.0; // kg
+  const std::array<double,3> F_x_C_Load = {0.0,0.0,0.0}; //Fxcload in m
+  const std::array<double,9> load_inertia = { 1.0,0.0,0.0,
+                                              0.0,1.0,0.0,
+                                              0.0,0.0,1.0 }; //inertia matrix of load [kg x m^2] in column major order
+  robot.setLoad(ft_sensor_mass, F_x_C_Load, load_inertia);
 }
 
 MotionGenerator::MotionGenerator(double speed_factor, const std::array<double, 7> q_goal)
