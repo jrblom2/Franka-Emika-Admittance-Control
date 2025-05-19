@@ -15,6 +15,7 @@
 
 #include "examples_common.h"
 #include "net_ft/hardware_interface.hpp"
+#include "SafeQueue.hpp"
 
 /**
  * @example cartesian_impedance_control.cpp
@@ -68,6 +69,9 @@ int main(int argc, char** argv) {
 
   net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
   std::cout << "Sensor started." << std::endl;
+
+  // thread-safe queue to transfer robot data to ROS
+  SafeQueue<Eigen::Matrix<double, 6, 1>> transfer;
 
   try {
     // connect to robot
@@ -123,7 +127,8 @@ int main(int argc, char** argv) {
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
-  
+      
+      transfer.Produce(Eigen::Matrix<double, 6, 1>(fext));
       //translate wrench from FT sensor as wrench in EE frame. MR 3.98
       fext = sensor_adjoint.transpose() * fext;
       
@@ -166,7 +171,7 @@ int main(int argc, char** argv) {
       //MR 11.66
       Eigen::VectorXd ddx_d(6);
       ddx_d << alpha.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
-      std::cout << "ddx: " << ddx_d << std::endl;
+      // std::cout << "ddx: " << ddx_d << std::endl;
 
       // compute control
       Eigen::VectorXd tau_task(7), tau_d(7);
@@ -187,12 +192,22 @@ int main(int argc, char** argv) {
         std::cout << "Invalid control" << std::endl;
       }
 
-      std::cout << "task: " << tau_task << std::endl;
+      // std::cout << "task: " << tau_task << std::endl;
       tau_d << tau_task + coriolis;
 
       std::array<double, 7> tau_d_array{};
       Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
       return tau_d_array;
+    };
+
+    //sends sensor data from control to ROS
+    auto transfer_callback = [&]() {
+      while(true) {
+        Eigen::Matrix<double, 6, 1> data;
+        while(transfer.Consume(data)) {
+          std::cout << data << std::endl;
+        }
+      }
     };
 
     // start real-time control loop
@@ -201,6 +216,7 @@ int main(int argc, char** argv) {
               << "After starting try to push the robot and see how it reacts." << std::endl
               << "Press Enter to continue..." << std::endl;
     std::cin.ignore();
+    std::thread transfer_thread(transfer_callback);
     robot.control(impedance_control_callback);
 
   } catch (const franka::Exception& ex) {
