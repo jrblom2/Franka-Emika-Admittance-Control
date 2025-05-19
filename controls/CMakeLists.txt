@@ -21,7 +21,7 @@ target_link_libraries(examples_common PUBLIC Franka::Franka)
 set(EXAMPLES
   cartesian_impedance_control
   white_light
-  addmitance
+  admitance
 )
 
 foreach(example ${EXAMPLES})
@@ -31,7 +31,7 @@ endforeach()
 
 add_subdirectory(net_ft)
 
-target_link_libraries(addmitance ft_interface)
+target_link_libraries(admitance ft_interface)
 
 include(GNUInstallDirs)
 install(TARGETS ${EXAMPLES} ${ROS2_EXAMPLES}
