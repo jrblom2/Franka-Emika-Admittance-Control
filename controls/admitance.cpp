@@ -205,7 +205,19 @@ int main(int argc, char** argv) {
       while(true) {
         Eigen::Matrix<double, 6, 1> data;
         while(transfer.Consume(data)) {
-          std::cout << data << std::endl;
+          double Fx = data(0,0);
+          double Fy = data(1,0);
+          double Fz = data(2,0);
+          double Tx = data(3,0);
+          double Ty = data(4,0);
+          double Tz = data(5,0);
+          std::cout << "Fx: " << Fx
+                  << " Fy: " << Fy
+                  << " Fz: " << Fz
+                  << " Tx: " << Tx
+                  << " Ty: " << Ty
+                  << " Tz: " << Tz
+          << std::endl;
         }
       }
     };
