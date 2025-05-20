@@ -31,16 +31,22 @@ set(EXAMPLES
 
 foreach(example ${EXAMPLES})
   add_executable(${example} src/${example}.cpp)
+
+  # include directories
   target_include_directories(${example} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-  target_link_libraries(${example} Franka::Franka examples_common)
+
+  # link libraries
+  target_link_libraries(${example} Franka::Franka examples_common ft_interface)
+
+  # c and cpp standards
   target_compile_features(${example} PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+
+  # where does it go? It goes in lib
   install(TARGETS ${example}
   DESTINATION lib/${PROJECT_NAME})
 endforeach()
-
-target_link_libraries(admitance ft_interface)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
