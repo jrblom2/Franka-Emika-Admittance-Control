@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
       // position error
       Eigen::Matrix<double, 6, 1> error;
       // TODO what is X in our control scheme? Or do we not use x?
-      error.head(3) << position - position_d;
+      error.head(3) << position - position;
       
       // orientation error
       // "difference" quaternion
