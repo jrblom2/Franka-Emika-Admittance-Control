@@ -166,14 +166,14 @@ int main(int argc, char** argv) {
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
       
+      //translate wrench from FT sensor as wrench in EE frame. MR 3.98
+      fext = sensor_adjoint.transpose() * fext;
       static int count = 0;
       count++;
       if (count == 50) {
         transfer.Produce(Eigen::Matrix<double, 6, 1>(fext));
         count = 0;
       }
-      //translate wrench from FT sensor as wrench in EE frame. MR 3.98
-      fext = sensor_adjoint.transpose() * fext;
       
       // static, set initial to current jacobian. Double check this. Is duration.toSec right?
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
