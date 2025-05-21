@@ -17,7 +17,7 @@
 #include "net_ft/hardware_interface.hpp"
 #include "SafeQueue.hpp"
 
-#include "geometry_msgs/msg/Wrench.msg"
+#include "geometry_msgs/msg/wrench.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 class MinimalPublisher : public rclcpp::Node

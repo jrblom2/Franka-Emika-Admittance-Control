@@ -9,6 +9,9 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(Franka REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
 
 # set up examples_utils library
 add_library(examples_common STATIC
@@ -43,6 +46,11 @@ foreach(example ${EXAMPLES})
   # c and cpp standards
   target_compile_features(${example} PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
+  ament_target_dependencies(${example}
+    rclcpp
+    geometry_msgs
+    std_msgs
+  )
   # where does it go? It goes in lib
   install(TARGETS ${example}
   DESTINATION lib/${PROJECT_NAME})
