@@ -44,7 +44,7 @@ public:
         message.torque.z = data(5,0);
         this->publisher_->publish(message);
       };
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(10), timer_callback);
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(20), timer_callback);
   }
 
 private:
