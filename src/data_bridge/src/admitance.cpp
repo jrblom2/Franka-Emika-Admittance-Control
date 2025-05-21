@@ -17,6 +17,32 @@
 #include "net_ft/hardware_interface.hpp"
 #include "SafeQueue.hpp"
 
+#include "geometry_msgs/msg/Wrench.msg"
+#include "rclcpp/rclcpp.hpp"
+
+class MinimalPublisher : public rclcpp::Node
+{
+public:
+  MinimalPublisher()
+  : Node("minimal_publisher"), count_(0)
+  {
+    publisher_ = this->create_publisher<std_msgs::msg::String>("topic", 10);
+    auto timer_callback =
+      [this]() -> void {
+        auto message = std_msgs::msg::String();
+        message.data = "Hello, world! " + std::to_string(this->count_++);
+        RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
+        this->publisher_->publish(message);
+      };
+    timer_ = this->create_wall_timer(500ms, timer_callback);
+  }
+
+private:
+  rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
+  size_t count_;
+};
+
 /**
  * @example cartesian_impedance_control.cpp
  * An example showing a simple cartesian impedance controller without inertia shaping
@@ -32,6 +58,9 @@ int main(int argc, char** argv) {
     std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  "<control-calc>" << std::endl;
     return -1;
   }
+
+  // RCL Init
+  rclcpp::init(argc, argv);
 
   std::string calc_mode{argv[2]};
 
@@ -211,13 +240,13 @@ int main(int argc, char** argv) {
           double Tx = data(3,0);
           double Ty = data(4,0);
           double Tz = data(5,0);
-          std::cout << "Fx: " << Fx
-                  << " Fy: " << Fy
-                  << " Fz: " << Fz
-                  << " Tx: " << Tx
-                  << " Ty: " << Ty
-                  << " Tz: " << Tz
-          << std::endl;
+          // std::cout << "Fx: " << Fx
+          //         << " Fy: " << Fy
+          //         << " Fz: " << Fz
+          //         << " Tx: " << Tx
+          //         << " Ty: " << Ty
+          //         << " Tz: " << Tz
+          // << std::endl;
         }
       }
     };
@@ -228,8 +257,18 @@ int main(int argc, char** argv) {
               << "After starting try to push the robot and see how it reacts." << std::endl
               << "Press Enter to continue..." << std::endl;
     std::cin.ignore();
-    std::thread transfer_thread(transfer_callback);
+
+    // data bridge through ROS2 setup
+    auto node = std::make_shared<MinimalPublisher>();
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+    std::thread spin_thread([&executor](){ executor.spin(); });
+
+    // std::thread transfer_thread(transfer_callback);
     robot.control(impedance_control_callback);
+
+    rclcpp::shutdown();
+    spin_thread.join();
 
   } catch (const franka::Exception& ex) {
     // print exception
