@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
   std::string calc_mode{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{15.0};
+  const double translational_stiffness{0.0};
   const double rotational_stiffness{25.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
   stiffness.setZero();
