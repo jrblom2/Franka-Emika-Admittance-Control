@@ -18,6 +18,7 @@
 #include "SafeQueue.hpp"
 
 #include "geometry_msgs/msg/wrench.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 class MinimalPublisher : public rclcpp::Node
@@ -26,7 +27,7 @@ public:
   MinimalPublisher()
   : Node("minimal_publisher"), count_(0)
   {
-    publisher_ = this->create_publisher<std_msgs::msg::String>("topic", 10);
+    publisher_ = this->create_publisher<std_msgs::msg::String>("data_bridge", 10);
     auto timer_callback =
       [this]() -> void {
         auto message = std_msgs::msg::String();
@@ -34,7 +35,7 @@ public:
         RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
         this->publisher_->publish(message);
       };
-    timer_ = this->create_wall_timer(500ms, timer_callback);
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(500), timer_callback);
   }
 
 private:
@@ -234,12 +235,12 @@ int main(int argc, char** argv) {
       while(true) {
         Eigen::Matrix<double, 6, 1> data;
         while(transfer.Consume(data)) {
-          double Fx = data(0,0);
-          double Fy = data(1,0);
-          double Fz = data(2,0);
-          double Tx = data(3,0);
-          double Ty = data(4,0);
-          double Tz = data(5,0);
+          // double Fx = data(0,0);
+          // double Fy = data(1,0);
+          // double Fz = data(2,0);
+          // double Tx = data(3,0);
+          // double Ty = data(4,0);
+          // double Tz = data(5,0);
           // std::cout << "Fx: " << Fx
           //         << " Fy: " << Fy
           //         << " Fz: " << Fz
