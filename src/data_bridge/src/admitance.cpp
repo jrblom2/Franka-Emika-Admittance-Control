@@ -24,24 +24,31 @@
 class MinimalPublisher : public rclcpp::Node
 {
 public:
-  MinimalPublisher()
-  : Node("minimal_publisher"), count_(0)
+  MinimalPublisher(SafeQueue<Eigen::Matrix<double, 6, 1>> & squeue)
+  : Node("minimal_publisher"), squeue_(squeue)
   {
-    publisher_ = this->create_publisher<std_msgs::msg::String>("data_bridge", 10);
+    publisher_ = this->create_publisher<geometry_msgs::msg::Wrench>("data_bridge", 10);
     auto timer_callback =
       [this]() -> void {
-        auto message = std_msgs::msg::String();
-        message.data = "Hello, world! " + std::to_string(this->count_++);
-        RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
-        this->publisher_->publish(message);
+        Eigen::Matrix<double, 6, 1> data;
+        auto message = geometry_msgs::msg::Wrench();
+        while(squeue_.Consume(data)) {
+          message.force.x = data(0,0);
+          message.force.y = data(1,0);
+          message.force.z = data(2,0);
+          message.torque.x = data(3,0);
+          message.torque.y = data(4,0);
+          message.torque.z = data(5,0);
+          this->publisher_->publish(message);
+        }
       };
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(500), timer_callback);
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(1), timer_callback);
   }
 
 private:
   rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
-  size_t count_;
+  rclcpp::Publisher<geometry_msgs::msg::Wrench>::SharedPtr publisher_;
+  SafeQueue<Eigen::Matrix<double, 6, 1>> & squeue_;
 };
 
 /**
@@ -231,26 +238,26 @@ int main(int argc, char** argv) {
     };
 
     //sends sensor data from control to ROS
-    auto transfer_callback = [&]() {
-      while(true) {
-        Eigen::Matrix<double, 6, 1> data;
-        while(transfer.Consume(data)) {
-          // double Fx = data(0,0);
-          // double Fy = data(1,0);
-          // double Fz = data(2,0);
-          // double Tx = data(3,0);
-          // double Ty = data(4,0);
-          // double Tz = data(5,0);
-          // std::cout << "Fx: " << Fx
-          //         << " Fy: " << Fy
-          //         << " Fz: " << Fz
-          //         << " Tx: " << Tx
-          //         << " Ty: " << Ty
-          //         << " Tz: " << Tz
-          // << std::endl;
-        }
-      }
-    };
+    // auto transfer_callback = [&]() {
+    //   while(true) {
+    //     Eigen::Matrix<double, 6, 1> data;
+    //     while(transfer.Consume(data)) {
+    //       // double Fx = data(0,0);
+    //       // double Fy = data(1,0);
+    //       // double Fz = data(2,0);
+    //       // double Tx = data(3,0);
+    //       // double Ty = data(4,0);
+    //       // double Tz = data(5,0);
+    //       // std::cout << "Fx: " << Fx
+    //       //         << " Fy: " << Fy
+    //       //         << " Fz: " << Fz
+    //       //         << " Tx: " << Tx
+    //       //         << " Ty: " << Ty
+    //       //         << " Tz: " << Tz
+    //       // << std::endl;
+    //     }
+    //   }
+    // };
 
     // start real-time control loop
     std::cout << "WARNING: Collision thresholds are set to high values. "
@@ -260,7 +267,7 @@ int main(int argc, char** argv) {
     std::cin.ignore();
 
     // data bridge through ROS2 setup
-    auto node = std::make_shared<MinimalPublisher>();
+    auto node = std::make_shared<MinimalPublisher>(transfer);
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     std::thread spin_thread([&executor](){ executor.spin(); });
