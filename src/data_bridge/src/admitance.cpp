@@ -33,7 +33,6 @@ public:
         Eigen::Matrix<double, 6, 1> data;
         auto message = geometry_msgs::msg::Wrench();
 
-        // 1000 messages a second is crazy clear queue 100 times a second and just send last one.
         while(squeue_.Consume(data)) {
           message.force.x = data(0,0);
           message.force.y = data(1,0);
@@ -167,7 +166,7 @@ int main(int argc, char** argv) {
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
       
-      static count = 0;
+      static int count = 0;
       count++;
       if (count == 50) {
         transfer.Produce(Eigen::Matrix<double, 6, 1>(fext));
