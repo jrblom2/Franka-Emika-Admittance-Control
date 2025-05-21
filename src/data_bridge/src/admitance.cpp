@@ -35,16 +35,16 @@ public:
 
         // 1000 messages a second is crazy clear queue 100 times a second and just send last one.
         while(squeue_.Consume(data)) {
+          message.force.x = data(0,0);
+          message.force.y = data(1,0);
+          message.force.z = data(2,0);
+          message.torque.x = data(3,0);
+          message.torque.y = data(4,0);
+          message.torque.z = data(5,0);
+          this->publisher_->publish(message);
         }
-        message.force.x = data(0,0);
-        message.force.y = data(1,0);
-        message.force.z = data(2,0);
-        message.torque.x = data(3,0);
-        message.torque.y = data(4,0);
-        message.torque.z = data(5,0);
-        this->publisher_->publish(message);
       };
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(20), timer_callback);
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(50), timer_callback);
   }
 
 private:
@@ -167,7 +167,12 @@ int main(int argc, char** argv) {
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
       
-      transfer.Produce(Eigen::Matrix<double, 6, 1>(fext));
+      static count = 0;
+      count++;
+      if (count == 50) {
+        transfer.Produce(Eigen::Matrix<double, 6, 1>(fext));
+        count = 0;
+      }
       //translate wrench from FT sensor as wrench in EE frame. MR 3.98
       fext = sensor_adjoint.transpose() * fext;
       
