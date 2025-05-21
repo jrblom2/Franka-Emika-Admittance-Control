@@ -1,6 +1,6 @@
 #include "./hardware_interface.hpp"
 
-int main(int argc, char** argv) {
+int main() {
 
     net_ft_driver::ft_info input;
     input.ip_address = "192.168.18.81";
