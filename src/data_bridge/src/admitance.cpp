@@ -32,17 +32,19 @@ public:
       [this]() -> void {
         Eigen::Matrix<double, 6, 1> data;
         auto message = geometry_msgs::msg::Wrench();
+
+        // 1000 messages a second is crazy clear queue 100 times a second and just send last one.
         while(squeue_.Consume(data)) {
-          message.force.x = data(0,0);
-          message.force.y = data(1,0);
-          message.force.z = data(2,0);
-          message.torque.x = data(3,0);
-          message.torque.y = data(4,0);
-          message.torque.z = data(5,0);
-          this->publisher_->publish(message);
         }
+        message.force.x = data(0,0);
+        message.force.y = data(1,0);
+        message.force.z = data(2,0);
+        message.torque.x = data(3,0);
+        message.torque.y = data(4,0);
+        message.torque.z = data(5,0);
+        this->publisher_->publish(message);
       };
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(1), timer_callback);
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(10), timer_callback);
   }
 
 private:
@@ -236,28 +238,6 @@ int main(int argc, char** argv) {
       Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
       return tau_d_array;
     };
-
-    //sends sensor data from control to ROS
-    // auto transfer_callback = [&]() {
-    //   while(true) {
-    //     Eigen::Matrix<double, 6, 1> data;
-    //     while(transfer.Consume(data)) {
-    //       // double Fx = data(0,0);
-    //       // double Fy = data(1,0);
-    //       // double Fz = data(2,0);
-    //       // double Tx = data(3,0);
-    //       // double Ty = data(4,0);
-    //       // double Tz = data(5,0);
-    //       // std::cout << "Fx: " << Fx
-    //       //         << " Fy: " << Fy
-    //       //         << " Fz: " << Fz
-    //       //         << " Tx: " << Tx
-    //       //         << " Ty: " << Ty
-    //       //         << " Tz: " << Tz
-    //       // << std::endl;
-    //     }
-    //   }
-    // };
 
     // start real-time control loop
     std::cout << "WARNING: Collision thresholds are set to high values. "
