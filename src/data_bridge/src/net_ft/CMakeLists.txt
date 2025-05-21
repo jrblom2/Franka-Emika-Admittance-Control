@@ -14,3 +14,8 @@ target_link_libraries(ft_interface ${ASIO_LDFLAGS} ${CURLPP_LDFLAGS} ${TINY_LDFL
 
 add_executable(ft_test test_ft.cpp)
 target_link_libraries(ft_test ft_interface)
+
+install(TARGETS ft_interface
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+)
