@@ -152,8 +152,6 @@ int main(int argc, char** argv) {
       //update sensor data
       sensor.read();
       std::array<double, 6> ft_reading = sensor.ft_sensor_measurements_;
-      //swap sign for gravity
-      ft_reading[2] = -ft_reading[2];
 
       // convert to Eigen
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
@@ -168,6 +166,12 @@ int main(int argc, char** argv) {
       
       //translate wrench from FT sensor as wrench in EE frame. MR 3.98
       fext = sensor_adjoint.transpose() * fext;
+      //swap sign for gravity
+      fext(2) = -fext(2);
+
+      //swap sign for x-axis
+      fext(0) = -fext(0);
+
       static int count = 0;
       count++;
       if (count == 50) {
