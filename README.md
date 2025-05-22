@@ -33,3 +33,13 @@ Available executables are as follows and all require the robot IP:
 `white_light`: impedance control example
 
 `cartesian_impedance_control`: impedance control example with pose tracking using spring-damper controls.
+
+## Credit
+
+F/T sensor integration code was stripped down and modified based on Grzegorz Bartyzel's project here:
+
+https://github.com/gbartyzel/ros2_net_ft_driver/tree/rolling
+
+Thread Safe queue implementation is provided by K-Adam:
+
+https://github.com/K-Adam/SafeQueue
