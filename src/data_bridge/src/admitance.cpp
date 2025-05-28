@@ -172,6 +172,11 @@ int main(int argc, char** argv) {
       //swap sign for x-axis
       fext(0) = -fext(0);
 
+      //try swapping the torques to resist the user
+      fext(3) = -fext(3);
+      fext(4) = -fext(4);
+      fext(5) = -fext(5);
+
       static int count = 0;
       count++;
       if (count == 50) {
@@ -230,9 +235,6 @@ int main(int argc, char** argv) {
         ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
         //MR 8.1
         tau_task << mass * ddq_d;
-      } else  if (calc_mode == "PLUGBACK") {
-        //MR 11.65
-        tau_task << jacobian.transpose() * (-(alpha * ddx_d) - (damping * (jacobian * dq)) - (stiffness * error));
       } else if (calc_mode == "SIMPLE") {
         tau_task << jacobian.transpose() * fext;
       } else {
