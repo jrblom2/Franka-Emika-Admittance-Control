@@ -172,10 +172,8 @@ int main(int argc, char** argv) {
       //swap sign for x-axis
       fext(0) = -fext(0);
 
-      //try swapping the torques to resist the user
-      fext(3) = -fext(3);
+      //torque in Z and X already resist user, invert Y to also resist user
       fext(4) = -fext(4);
-      fext(5) = -fext(5);
 
       static int count = 0;
       count++;
