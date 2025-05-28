@@ -78,8 +78,8 @@ int main(int argc, char** argv) {
   const double rotational_stiffness{35.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{1.0};
-  const double virtual_mass_scaling{1.5};
-  Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
+  const double virtual_mass_scaling{10.0};
+  Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
   stiffness.bottomRightCorner(3, 3) << rotational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -88,6 +88,9 @@ int main(int argc, char** argv) {
                                      Eigen::MatrixXd::Identity(3, 3);
   damping.bottomRightCorner(3, 3) << rotational_damping_factor * sqrt(rotational_stiffness) *
                                          Eigen::MatrixXd::Identity(3, 3);
+  virtual_mass.setZero();
+  virtual_mass.topLeftCorner(3, 3) << virtual_mass_scaling * Eigen::MatrixXd::Identity(3, 3);
+  virtual_mass.bottomRightCorner(3, 3) << virtual_mass_scaling * Eigen::MatrixXd::Identity(3, 3);
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -220,10 +223,9 @@ int main(int argc, char** argv) {
       // Transform to base frame
       error.tail(3) << -transform.rotation() * error.tail(3);
 
-      //MR 11.66
+      //MR 11.66, using mass matrix of robot as virtual mass. Have not found a better alternative after testing.
       Eigen::VectorXd ddx_d(6);
-      ddx_d << (virtual_mass_scaling * alpha.inverse()) * (fext - (damping * (jacobian * dq)) - (stiffness * error));
-      // std::cout << "ddx: " << ddx_d << std::endl;
+      ddx_d << alpha.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
       Eigen::VectorXd tau_task(7), tau_d(7);
