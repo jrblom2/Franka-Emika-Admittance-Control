@@ -202,8 +202,8 @@ int main(int argc, char** argv) {
       // compute error to desired equilibrium pose
       // position error
       Eigen::Matrix<double, 6, 1> error;
-      // TODO what is X in our control scheme? Or do we not use x?
-      error.head(3) << position - position;
+      // error.head(3) << position - position_d;
+      error.segment<3>(0) << 0.0, position(1) - position_d(1), 0.0;
       
       // orientation error
       // "difference" quaternion
