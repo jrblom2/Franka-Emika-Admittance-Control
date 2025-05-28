@@ -208,8 +208,13 @@ int main(int argc, char** argv) {
       // compute error to desired equilibrium pose
       // position error
       Eigen::Matrix<double, 6, 1> error;
-      // error.head(3) << position - position_d;
-      error.segment<3>(0) << 0.0, position(1) - position_d(1), 0.0;
+      if (calc_mode == "TRACK") {
+        error.head(3).setZero();
+      } else if (calc_mode == "SPRINGY") {
+        error.segment<3>(0) << 0.0, position(1) - position_d(1), 0.0;
+      } else if (calc_mode == "SPRING") {
+        error.head(3) << position - position_d;
+      }
       
       // orientation error
       // "difference" quaternion
@@ -231,17 +236,11 @@ int main(int argc, char** argv) {
       Eigen::VectorXd tau_task(7), tau_d(7);
 
       //different methods for calcuating torque from force input, often results in same calculation but not always?
-      if (calc_mode == "JOINTACCEL") {
-        //MR 11.66
-        Eigen::VectorXd ddq_d(7);
-        ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
-        //MR 8.1
-        tau_task << mass * ddq_d;
-      } else if (calc_mode == "SIMPLE") {
-        tau_task << jacobian.transpose() * fext;
-      } else {
-        std::cout << "Invalid control" << std::endl;
-      }
+      //MR 11.66
+      Eigen::VectorXd ddq_d(7);
+      ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
+      //MR 8.1
+      tau_task << mass * ddq_d;
 
       // std::cout << "task: " << tau_task << std::endl;
       tau_d << tau_task + coriolis;
