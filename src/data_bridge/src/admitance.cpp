@@ -164,14 +164,13 @@ int main(int argc, char** argv) {
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
       
+      // TODO wrench translations should all be part of the adjoint
       //translate wrench from FT sensor as wrench in EE frame. MR 3.98
       fext = sensor_adjoint.transpose() * fext;
       //swap sign for gravity
       fext(2) = -fext(2);
-
       //swap sign for x-axis
       fext(0) = -fext(0);
-
       //torque in Z and X already resist user, invert Y to also resist user
       fext(4) = -fext(4);
 
