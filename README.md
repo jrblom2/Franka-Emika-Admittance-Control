@@ -13,7 +13,7 @@ A franka emika robot arm with workstation is the robot used while an Axia80-M8 F
 https://www.ati-ia.com/products/ft/ft_models.aspx?id=Axia80-M8
 
 ## Workflow
-1. Run ```./build.sh``` to copy project files to project directory on workstation. Mush have SSH key added to workstation otherwise you might be prompted.
+1. Run ```./move.sh``` to copy project files to project directory on workstation. Mush have SSH key added to workstation otherwise you might be prompted.
 2. On workstation, run ```colcon build``` to build the project in the space it will be run.
 
 ## Running
