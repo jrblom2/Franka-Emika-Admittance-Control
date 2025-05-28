@@ -76,8 +76,9 @@ int main(int argc, char** argv) {
   // Compliance parameters
   const double translational_stiffness{100.0};
   const double rotational_stiffness{35.0};
-  const double translational_damping_factor{0.2};
-  const double rotational_damping_factor{2.0};
+  const double translational_damping_factor{0.0};
+  const double rotational_damping_factor{1.0};
+  const double virtual_mass_scaling{1.5};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -221,7 +222,7 @@ int main(int argc, char** argv) {
 
       //MR 11.66
       Eigen::VectorXd ddx_d(6);
-      ddx_d << alpha.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
+      ddx_d << (virtual_mass_scaling * alpha.inverse()) * (fext - (damping * (jacobian * dq)) - (stiffness * error));
       // std::cout << "ddx: " << ddx_d << std::endl;
 
       // compute control
