@@ -21,25 +21,31 @@
 #include "std_msgs/msg/string.hpp"
 #include "rclcpp/rclcpp.hpp"
 
+struct queue_package {
+  Eigen::Matrix<double, 6, 1> wrench;
+  Eigen::Quaterniond orientation;
+  Eigen::Vector3d translation;
+};
+
 class MinimalPublisher : public rclcpp::Node
 {
 public:
-  MinimalPublisher(SafeQueue<Eigen::Matrix<double, 6, 1>> & squeue_wrench, SafeQueue<Eigen::Quaterniond> & squeue_orientation, SafeQueue<Eigen::Vector3d> & squeue_translation)
-  : Node("minimal_publisher"), squeue_wrench_(squeue_wrench), squeue_orientation_(squeue_orientation), squeue_translation_(squeue_translation)
+  MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
+  : Node("minimal_publisher"), squeue_transfer_(squeue_transfer)
   {
     publisher_ = this->create_publisher<geometry_msgs::msg::Wrench>("data_bridge", 10);
     auto timer_callback =
       [this]() -> void {
-        Eigen::Matrix<double, 6, 1> data;
+        queue_package data;
         auto message = geometry_msgs::msg::Wrench();
 
-        while(squeue_wrench_.Consume(data)) {
-          message.force.x = data(0,0);
-          message.force.y = data(1,0);
-          message.force.z = data(2,0);
-          message.torque.x = data(3,0);
-          message.torque.y = data(4,0);
-          message.torque.z = data(5,0);
+        while(squeue_transfer_.Consume(data)) {
+          message.force.x = data.wrench(0,0);
+          message.force.y = data.wrench(1,0);
+          message.force.z = data.wrench(2,0);
+          message.torque.x = data.wrench(3,0);
+          message.torque.y = data.wrench(4,0);
+          message.torque.z = data.wrench(5,0);
           this->publisher_->publish(message);
         }
       };
@@ -49,9 +55,7 @@ public:
 private:
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Publisher<geometry_msgs::msg::Wrench>::SharedPtr publisher_;
-  SafeQueue<Eigen::Matrix<double, 6, 1>> & squeue_wrench_;
-  SafeQueue<Eigen::Quaterniond> & squeue_orientation_;
-  SafeQueue<Eigen::Vector3d> & squeue_translation_;
+  SafeQueue<queue_package> & squeue_transfer_;
 };
 
 /**
@@ -117,9 +121,7 @@ int main(int argc, char** argv) {
   std::cout << "Sensor started." << std::endl;
 
   // thread-safe queue to transfer robot data to ROS
-  SafeQueue<Eigen::Matrix<double, 6, 1>> transfer_wrench;
-  SafeQueue<Eigen::Quaterniond> transfer_orientation;
-  SafeQueue<Eigen::Vector3d> transfer_translation;
+  SafeQueue<queue_package> transfer_package;
 
   try {
     // connect to robot
@@ -187,9 +189,11 @@ int main(int argc, char** argv) {
       static int count = 0;
       count++;
       if (count == 50) {
-        transfer_wrench.Produce(Eigen::Matrix<double, 6, 1>(fext));
-        transfer_translation.Produce(Eigen::Vector3d(position));
-        transfer_orientation.Produce(Eigen::Quaterniond(orientation));
+        queue_package new_package;
+        new_package.wrench = Eigen::Matrix<double, 6, 1>(fext);
+        new_package.orientation = Eigen::Quaterniond(orientation);
+        new_package.translation = Eigen::Vector3d(position);
+        transfer_package.Produce(std::move(new_package));
         count = 0;
       }
       
@@ -264,7 +268,7 @@ int main(int argc, char** argv) {
     std::cin.ignore();
 
     // data bridge through ROS2 setup
-    auto node = std::make_shared<MinimalPublisher>(transfer_wrench, transfer_orientation, transfer_translation);
+    auto node = std::make_shared<MinimalPublisher>(transfer_package);
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     std::thread spin_thread([&executor](){ executor.spin(); });
