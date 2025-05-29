@@ -33,7 +33,7 @@ public:
   MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
   : Node("minimal_publisher"), squeue_transfer_(squeue_transfer)
   {
-    publisher_ = this->create_publisher<geometry_msgs::msg::Wrench>("data_bridge", 10);
+    publisher_ = this->create_publisher<geometry_msgs::msg::Wrench>("data_wrench", 10);
     auto timer_callback =
       [this]() -> void {
         queue_package data;
