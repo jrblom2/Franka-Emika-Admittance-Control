@@ -28,7 +28,7 @@ set(EXAMPLES
   data_node
   cartesian_impedance_control
   white_light
-  admitance
+  admittance
 )
 
 foreach(example ${EXAMPLES})
