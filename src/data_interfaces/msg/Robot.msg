@@ -1,2 +1,3 @@
 geometry_msgs/Pose position
+geometry_msgs/Pose position_d
 geometry_msgs/Wrench wrench

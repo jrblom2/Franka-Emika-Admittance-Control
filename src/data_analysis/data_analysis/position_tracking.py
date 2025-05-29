@@ -16,32 +16,41 @@ class MinimalSubscriber(Node):
         self.xPosition = []
         self.yPosition = []
         self.zPosition = []
+        self.xPosition_d = []
+        self.yPosition_d = []
+        self.zPosition_d = []
         self.time = []
 
         plt.ion()
         self.fig, self.axes = plt.subplots(2, 3, figsize=(10, 8))
         self.lines = []
 
+        # First subplot
         ax = self.axes[0, 0]
-        (lineX,) = ax.plot([], [], 'r-')
+        (lineX1,) = ax.plot([], [], 'r-')  # First line (red)
+        (lineX2,) = ax.plot([], [], color='pink')  # Second line (pink)
         ax.set_title("X Position")
         ax.set_xlabel("Time")
         ax.set_ylabel("Position")
-        self.lines.append(lineX)
+        self.lines.extend([lineX1, lineX2])
 
+        # Second subplot
         ax = self.axes[0, 1]
-        (lineY,) = ax.plot([], [], 'g-')
+        (lineY1,) = ax.plot([], [], 'g-')  # First line (green)
+        (lineY2,) = ax.plot([], [], color='lime')  # Second line (lime)
         ax.set_title("Y Position")
         ax.set_xlabel("Time")
         ax.set_ylabel("Position")
-        self.lines.append(lineY)
+        self.lines.extend([lineY1, lineY2])
 
+        # Third subplot
         ax = self.axes[0, 2]
-        (lineZ,) = ax.plot([], [], 'b-')
+        (lineZ1,) = ax.plot([], [], 'b-')  # First line (blue)
+        (lineZ2,) = ax.plot([], [], color='lightblue')  # Second line (light blue)
         ax.set_title("Z Position")
         ax.set_xlabel("Time")
         ax.set_ylabel("Position")
-        self.lines.append(lineZ)
+        self.lines.extend([lineZ1, lineZ2])
 
         self.counter = 0
 
@@ -49,19 +58,25 @@ class MinimalSubscriber(Node):
         self.xPosition.append(msg.position.position.x)
         self.yPosition.append(msg.position.position.y)
         self.zPosition.append(msg.position.position.z)
+        self.xPosition_d.append(msg.position_d.position.x)
+        self.yPosition_d.append(msg.position_d.position.y)
+        self.zPosition_d.append(msg.position_d.position.z)
         self.time.append(self.counter / 20)
         self.counter += 1
 
     def timer_callback(self):
         self.lines[0].set_data(self.time, self.xPosition)
+        self.lines[1].set_data(self.time, self.xPosition_d)
         self.axes[0, 0].relim()
         self.axes[0, 0].autoscale_view()
 
-        self.lines[1].set_data(self.time, self.yPosition)
+        self.lines[2].set_data(self.time, self.yPosition)
+        self.lines[3].set_data(self.time, self.yPosition_d)
         self.axes[0, 1].relim()
         self.axes[0, 1].autoscale_view()
 
-        self.lines[2].set_data(self.time, self.zPosition)
+        self.lines[4].set_data(self.time, self.zPosition)
+        self.lines[5].set_data(self.time, self.zPosition_d)
         self.axes[0, 2].relim()
         self.axes[0, 2].autoscale_view()
 

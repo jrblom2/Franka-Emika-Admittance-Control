@@ -24,6 +24,7 @@ struct queue_package {
   Eigen::Matrix<double, 6, 1> wrench;
   Eigen::Quaterniond orientation;
   Eigen::Vector3d translation;
+  Eigen::Vector3d translation_d;
 };
 
 class MinimalPublisher : public rclcpp::Node
@@ -54,6 +55,10 @@ public:
           message.position.orientation.y = data.orientation.y();
           message.position.orientation.z = data.orientation.z();
           message.position.orientation.w = data.orientation.w();
+
+          message.position_d.position.x = data.translation_d[0] + 0.1;
+          message.position_d.position.y = data.translation_d[1] + 0.1;
+          message.position_d.position.z = data.translation_d[2] + 0.1;
           this->publisher_->publish(message);
         }
       };
@@ -89,7 +94,7 @@ int main(int argc, char** argv) {
 
   // Compliance parameters
   const double translational_stiffness{100.0};
-  const double rotational_stiffness{35.0};
+  const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
   const double virtual_mass_scaling{10.0};
@@ -201,6 +206,7 @@ int main(int argc, char** argv) {
         new_package.wrench = Eigen::Matrix<double, 6, 1>(fext);
         new_package.orientation = Eigen::Quaterniond(orientation);
         new_package.translation = Eigen::Vector3d(position);
+        new_package.translation_d = Eigen::Vector3d(position);
         transfer_package.Produce(std::move(new_package));
         count = 0;
       }
