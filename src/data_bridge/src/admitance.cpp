@@ -24,8 +24,8 @@
 class MinimalPublisher : public rclcpp::Node
 {
 public:
-  MinimalPublisher(SafeQueue<Eigen::Matrix<double, 6, 1>> & squeue)
-  : Node("minimal_publisher"), squeue_(squeue)
+  MinimalPublisher(SafeQueue<Eigen::Matrix<double, 6, 1>> & squeue_wrench, SafeQueue<Eigen::Quaterniond> & squeue_orientation, SafeQueue<Eigen::Vector3d> & squeue_translation)
+  : Node("minimal_publisher"), squeue_wrench_(squeue_wrench), squeue_orientation_(squeue_orientation), squeue_translation_(squeue_translation)
   {
     publisher_ = this->create_publisher<geometry_msgs::msg::Wrench>("data_bridge", 10);
     auto timer_callback =
@@ -33,7 +33,7 @@ public:
         Eigen::Matrix<double, 6, 1> data;
         auto message = geometry_msgs::msg::Wrench();
 
-        while(squeue_.Consume(data)) {
+        while(squeue_wrench_.Consume(data)) {
           message.force.x = data(0,0);
           message.force.y = data(1,0);
           message.force.z = data(2,0);
@@ -49,7 +49,9 @@ public:
 private:
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Publisher<geometry_msgs::msg::Wrench>::SharedPtr publisher_;
-  SafeQueue<Eigen::Matrix<double, 6, 1>> & squeue_;
+  SafeQueue<Eigen::Matrix<double, 6, 1>> & squeue_wrench_;
+  SafeQueue<Eigen::Quaterniond> & squeue_orientation_;
+  SafeQueue<Eigen::Vector3d> & squeue_translation_;
 };
 
 /**
@@ -115,7 +117,9 @@ int main(int argc, char** argv) {
   std::cout << "Sensor started." << std::endl;
 
   // thread-safe queue to transfer robot data to ROS
-  SafeQueue<Eigen::Matrix<double, 6, 1>> transfer;
+  SafeQueue<Eigen::Matrix<double, 6, 1>> transfer_wrench;
+  SafeQueue<Eigen::Quaterniond> transfer_orientation;
+  SafeQueue<Eigen::Vector3d> transfer_translation;
 
   try {
     // connect to robot
@@ -183,7 +187,9 @@ int main(int argc, char** argv) {
       static int count = 0;
       count++;
       if (count == 50) {
-        transfer.Produce(Eigen::Matrix<double, 6, 1>(fext));
+        transfer_wrench.Produce(Eigen::Matrix<double, 6, 1>(fext));
+        transfer_translation.Produce(Eigen::Vector3d(position));
+        transfer_orientation.Produce(Eigen::Quaterniond(orientation));
         count = 0;
       }
       
@@ -258,7 +264,7 @@ int main(int argc, char** argv) {
     std::cin.ignore();
 
     // data bridge through ROS2 setup
-    auto node = std::make_shared<MinimalPublisher>(transfer);
+    auto node = std::make_shared<MinimalPublisher>(transfer_wrench, transfer_orientation, transfer_translation);
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     std::thread spin_thread([&executor](){ executor.spin(); });
