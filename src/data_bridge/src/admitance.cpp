@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
   const double translational_stiffness{100.0};
   const double rotational_stiffness{35.0};
   const double translational_damping_factor{0.0};
-  const double rotational_damping_factor{1.0};
+  const double rotational_damping_factor{2.0};
   const double virtual_mass_scaling{10.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
