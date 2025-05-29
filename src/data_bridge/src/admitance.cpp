@@ -17,8 +17,7 @@
 #include "net_ft/hardware_interface.hpp"
 #include "SafeQueue.hpp"
 
-#include "geometry_msgs/msg/wrench.hpp"
-#include "std_msgs/msg/string.hpp"
+#include "data_interfaces/msg/robot.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 struct queue_package {
@@ -33,19 +32,19 @@ public:
   MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
   : Node("minimal_publisher"), squeue_transfer_(squeue_transfer)
   {
-    publisher_ = this->create_publisher<geometry_msgs::msg::Wrench>("data_wrench", 10);
+    publisher_ = this->create_publisher<data_interfaces::msg::Robot>("robot_data", 10);
     auto timer_callback =
       [this]() -> void {
         queue_package data;
-        auto message = geometry_msgs::msg::Wrench();
+        auto message = data_interfaces::msg::Robot();
 
         while(squeue_transfer_.Consume(data)) {
-          message.force.x = data.wrench(0,0);
-          message.force.y = data.wrench(1,0);
-          message.force.z = data.wrench(2,0);
-          message.torque.x = data.wrench(3,0);
-          message.torque.y = data.wrench(4,0);
-          message.torque.z = data.wrench(5,0);
+          message.wrench.force.x = data.wrench(0,0);
+          message.wrench.force.y = data.wrench(1,0);
+          message.wrench.force.z = data.wrench(2,0);
+          message.wrench.torque.x = data.wrench(3,0);
+          message.wrench.torque.y = data.wrench(4,0);
+          message.wrench.torque.z = data.wrench(5,0);
           this->publisher_->publish(message);
         }
       };
@@ -54,7 +53,7 @@ public:
 
 private:
   rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<geometry_msgs::msg::Wrench>::SharedPtr publisher_;
+  rclcpp::Publisher<data_interfaces::msg::Robot>::SharedPtr publisher_;
   SafeQueue<queue_package> & squeue_transfer_;
 };
 

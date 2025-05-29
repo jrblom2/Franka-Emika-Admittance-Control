@@ -9,8 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(Franka REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(std_msgs REQUIRED)
+find_package(data_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 
 # set up examples_utils library
@@ -48,8 +47,7 @@ foreach(example ${EXAMPLES})
 
   ament_target_dependencies(${example}
     rclcpp
-    geometry_msgs
-    std_msgs
+    data_interfaces
   )
   # where does it go? It goes in lib
   install(TARGETS ${example}

@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Wrench
+from data_interfaces.msg import Robot
 
 import matplotlib.pyplot as plt
 
@@ -10,7 +10,7 @@ class MinimalSubscriber(Node):
 
     def __init__(self):
         super().__init__('minimal_subscriber')
-        self.subscription = self.create_subscription(Wrench, 'data_wrench', self.listener_callback, 10)
+        self.subscription = self.create_subscription(Robot, 'robot_data', self.listener_callback, 10)
         self.subscription  # prevent unused variable warning
         self.timer = self.create_timer(1, self.timer_callback)
         self.xForce = []
@@ -25,7 +25,7 @@ class MinimalSubscriber(Node):
         self.counter = 0
 
     def listener_callback(self, msg):
-        self.xForce.append(msg.force.x)
+        self.xForce.append(msg.wrench.force.x)
         self.axis.append(self.counter / 20)
         self.counter += 1
 
