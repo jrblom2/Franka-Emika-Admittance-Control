@@ -45,6 +45,15 @@ public:
           message.wrench.torque.x = data.wrench(3,0);
           message.wrench.torque.y = data.wrench(4,0);
           message.wrench.torque.z = data.wrench(5,0);
+
+          message.position.position.x = data.translation[0];
+          message.position.position.y = data.translation[1];
+          message.position.position.z = data.translation[2];
+
+          message.position.orientation.x = data.orientation.x();
+          message.position.orientation.y = data.orientation.y();
+          message.position.orientation.z = data.orientation.z();
+          message.position.orientation.w = data.orientation.w();
           this->publisher_->publish(message);
         }
       };
