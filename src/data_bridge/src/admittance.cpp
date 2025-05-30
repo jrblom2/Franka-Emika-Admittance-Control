@@ -22,7 +22,7 @@
 
 struct queue_package {
   Eigen::Matrix<double, 6, 1> wrench;
-  Eigen::Quaterniond orientation;
+  Eigen::Matrix<double, 3, 1> orientation_error;
   Eigen::Vector3d translation;
   Eigen::Vector3d translation_d;
 };
@@ -51,10 +51,10 @@ public:
           message.position.position.y = data.translation[1];
           message.position.position.z = data.translation[2];
 
-          message.position.orientation.x = data.orientation.x();
-          message.position.orientation.y = data.orientation.y();
-          message.position.orientation.z = data.orientation.z();
-          message.position.orientation.w = data.orientation.w();
+          message.position.orientation.x = data.orientation_error(0,0);
+          message.position.orientation.y = data.orientation_error(1,0);
+          message.position.orientation.z = data.orientation_error(2,0);
+          message.position.orientation.w = 1.0;
 
           message.position_d.position.x = data.translation_d[0] + 0.1;
           message.position_d.position.y = data.translation_d[1] + 0.1;
@@ -198,18 +198,6 @@ int main(int argc, char** argv) {
       fext(0) = -fext(0);
       //torque in Z and X already resist user, invert Y to also resist user
       fext(4) = -fext(4);
-
-      static int count = 0;
-      count++;
-      if (count == 50) {
-        queue_package new_package;
-        new_package.wrench = Eigen::Matrix<double, 6, 1>(fext);
-        new_package.orientation = Eigen::Quaterniond(orientation);
-        new_package.translation = Eigen::Vector3d(position);
-        new_package.translation_d = Eigen::Vector3d(position);
-        transfer_package.Produce(std::move(new_package));
-        count = 0;
-      }
       
       // static, set initial to current jacobian. Double check this. Is duration.toSec right?
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
@@ -271,6 +259,20 @@ int main(int argc, char** argv) {
 
       std::array<double, 7> tau_d_array{};
       Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
+
+      // publish results
+      static int count = 0;
+      count++;
+      if (count == 50) {
+        queue_package new_package;
+        new_package.wrench = Eigen::Matrix<double, 6, 1>(fext);
+        new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
+        new_package.translation = Eigen::Vector3d(position);
+        new_package.translation_d = Eigen::Vector3d(position);
+        transfer_package.Produce(std::move(new_package));
+        count = 0;
+      }
+
       return tau_d_array;
     };
 

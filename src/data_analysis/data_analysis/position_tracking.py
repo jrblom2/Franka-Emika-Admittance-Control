@@ -6,27 +6,6 @@ from data_interfaces.msg import Robot
 import matplotlib.pyplot as plt
 
 
-def quaternion_to_euler(x, y, z, w):
-    # Roll (x-axis rotation)
-    sinr_cosp = 2 * (w * x + y * z)
-    cosr_cosp = 1 - 2 * (x * x + y * y)
-    roll = np.arctan2(sinr_cosp, cosr_cosp)
-
-    # Pitch (y-axis rotation)
-    sinp = 2 * (w * y - z * x)
-    if abs(sinp) >= 1:
-        pitch = np.pi / 2 * np.sign(sinp)  # use 90 degrees if out of range
-    else:
-        pitch = np.arcsin(sinp)
-
-    # Yaw (z-axis rotation)
-    siny_cosp = 2 * (w * z + x * y)
-    cos_y_cosp = 1 - 2 * (y * y + z * z)
-    yaw = np.arctan2(siny_cosp, cos_y_cosp)
-
-    return roll, pitch, yaw
-
-
 class MinimalSubscriber(Node):
 
     def __init__(self):
@@ -79,14 +58,15 @@ class MinimalSubscriber(Node):
         ax.legend()
         self.lines.extend([lineZ1, lineZ2])
 
-        # Roll Pitch Yaw subplot
+        # Roll Pitch Yaw subplot, doesent work
         ax = self.axes[1, 0]
         (lineR,) = ax.plot([], [], 'r-', label='Roll')
         (lineP,) = ax.plot([], [], 'g-', label='Pitch')
         (lineY,) = ax.plot([], [], 'b-', label='Yaw')
-        ax.set_title("Roll Pitch Yaw")
+        ax.set_title("Roll Pitch Yaw Error")
         ax.set_xlabel("Time")
         ax.set_ylabel("Position")
+        ax.set_ylim(-3.14, 3.14)
         ax.legend()
         self.lines.extend([lineR, lineP, lineY])
 
@@ -99,14 +79,9 @@ class MinimalSubscriber(Node):
         self.xPosition_d.append(msg.position_d.position.x)
         self.yPosition_d.append(msg.position_d.position.y)
         self.zPosition_d.append(msg.position_d.position.z)
-        x = msg.position.orientation.x
-        y = msg.position.orientation.y
-        z = msg.position.orientation.z
-        w = msg.position.orientation.w
-        roll, pitch, yaw = quaternion_to_euler(x, y, z, w)
-        self.roll.append(roll)
-        self.pitch.append(pitch)
-        self.yaw.append(yaw)
+        self.roll.append(msg.position.orientation.x)
+        self.pitch.append(msg.position.orientation.y)
+        self.yaw.append(msg.position.orientation.z)
 
         self.time.append(self.counter / 20)
         self.counter += 1
@@ -131,7 +106,7 @@ class MinimalSubscriber(Node):
         self.lines[7].set_data(self.time, self.pitch)
         self.lines[8].set_data(self.time, self.yaw)
         self.axes[1, 0].relim()
-        self.axes[1, 0].autoscale_view()
+        self.axes[1, 0].autoscale_view(scaley=False)
 
         self.fig.tight_layout()
         self.fig.canvas.draw()
