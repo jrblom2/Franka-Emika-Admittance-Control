@@ -19,6 +19,7 @@ class MinimalSubscriber(Node):
         self.xPosition_d = []
         self.yPosition_d = []
         self.zPosition_d = []
+        self.positionErrorMag = []
         self.roll = []
         self.pitch = []
         self.yaw = []
@@ -58,7 +59,7 @@ class MinimalSubscriber(Node):
         ax.legend()
         self.lines.extend([lineZ1, lineZ2])
 
-        # Roll Pitch Yaw subplot, doesent work
+        # Roll Pitch Yaw subplot
         ax = self.axes[1, 0]
         (lineR,) = ax.plot([], [], 'r-', label='Roll')
         (lineP,) = ax.plot([], [], 'g-', label='Pitch')
@@ -69,6 +70,15 @@ class MinimalSubscriber(Node):
         ax.set_ylim(-3.14, 3.14)
         ax.legend()
         self.lines.extend([lineR, lineP, lineY])
+
+        # Position Error magnitude
+        ax = self.axes[1, 1]
+        (lineErrorMag,) = ax.plot([], [], 'r-', label='Error Magnitude')
+        ax.set_title("Magnitude of actual position versus computed")
+        ax.set_xlabel("Time (seconds)")
+        ax.set_ylabel("Magnitude (meters)")
+        ax.legend()
+        self.lines.extend([lineErrorMag])
 
         self.counter = 0
 
@@ -82,6 +92,11 @@ class MinimalSubscriber(Node):
         self.roll.append(msg.position.orientation.x)
         self.pitch.append(msg.position.orientation.y)
         self.yaw.append(msg.position.orientation.z)
+
+        actual = np.array([msg.position.position.x, msg.position.position.y, msg.position.position.z])
+        desired = np.array([msg.position_d.position.x, msg.position_d.position.y, msg.position_d.position.z])
+        error = np.linalg.norm(actual - desired)
+        self.positionErrorMag.append(error)
 
         self.time.append(self.counter / 20)
         self.counter += 1
@@ -107,6 +122,10 @@ class MinimalSubscriber(Node):
         self.lines[8].set_data(self.time, self.yaw)
         self.axes[1, 0].relim()
         self.axes[1, 0].autoscale_view(scaley=False)
+
+        self.lines[9].set_data(self.time, self.positionErrorMag)
+        self.axes[1, 1].relim()
+        self.axes[1, 1].autoscale_view()
 
         self.fig.tight_layout()
         self.fig.canvas.draw()

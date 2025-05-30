@@ -56,9 +56,9 @@ public:
           message.position.orientation.z = data.orientation_error(2,0);
           message.position.orientation.w = 1.0;
 
-          message.position_d.position.x = data.translation_d[0] + 0.1;
-          message.position_d.position.y = data.translation_d[1] + 0.1;
-          message.position_d.position.z = data.translation_d[2] + 0.1;
+          message.position_d.position.x = data.translation_d[0];
+          message.position_d.position.y = data.translation_d[1];
+          message.position_d.position.z = data.translation_d[2];
           this->publisher_->publish(message);
         }
       };
@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
       //torque in Z and X already resist user, invert Y to also resist user
       fext(4) = -fext(4);
       
-      // static, set initial to current jacobian. Double check this. Is duration.toSec right?
+      // static, set initial to current jacobian. Double check this.
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
       
       Eigen::Matrix<double, 6, 7> djacobian;
@@ -260,6 +260,8 @@ int main(int argc, char** argv) {
       std::array<double, 7> tau_d_array{};
       Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 
+      static Eigen::Vector3d predicted = position;
+
       // publish results
       static int count = 0;
       count++;
@@ -268,9 +270,16 @@ int main(int argc, char** argv) {
         new_package.wrench = Eigen::Matrix<double, 6, 1>(fext);
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
-        new_package.translation_d = Eigen::Vector3d(position);
+        new_package.translation_d = Eigen::Vector3d(predicted);
         transfer_package.Produce(std::move(new_package));
         count = 0;
+      }
+
+      //predicted position based on acceleration control. Update after message publish so we pair last rounds predicted with the actual change.
+      if (duration.toSec() < 0.00000001) {
+        predicted = position;
+      } else {
+        predicted = position + ((jacobian * dq).head(3) * duration.toSec()) + (0.5*ddx_d.head(3)*pow(duration.toSec(), 2.0));
       }
 
       return tau_d_array;
