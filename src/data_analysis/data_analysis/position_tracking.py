@@ -98,7 +98,7 @@ class MinimalSubscriber(Node):
         error = np.linalg.norm(actual - desired)
         self.positionErrorMag.append(error)
 
-        self.time.append(self.counter / 20)
+        self.time.append(self.counter / 100)
         self.counter += 1
 
     def timer_callback(self):

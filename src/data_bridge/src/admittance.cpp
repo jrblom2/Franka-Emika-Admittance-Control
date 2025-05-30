@@ -62,7 +62,7 @@ public:
           this->publisher_->publish(message);
         }
       };
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(50), timer_callback);
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(10), timer_callback);
   }
 
 private:
@@ -265,7 +265,7 @@ int main(int argc, char** argv) {
       // publish results
       static int count = 0;
       count++;
-      if (count == 50) {
+      if (count == 10) {
         queue_package new_package;
         new_package.wrench = Eigen::Matrix<double, 6, 1>(fext);
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
