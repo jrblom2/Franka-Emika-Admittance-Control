@@ -10,13 +10,18 @@
 #include <franka/robot.h>
 
 void setDefaultBehavior(franka::Robot& robot) {
+  //can change if robot is crashing too often
   robot.setCollisionBehavior(
       {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0}}, {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0}},
       {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0}}, {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0}},
       {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0}}, {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0}},
       {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}}, {{10.0, 10.0, 10.0, 10.0, 10.0, 10.0}});
+  
+  //does nothing for torque control
   robot.setJointImpedance({{3000, 3000, 3000, 2500, 2500, 2000, 2000}});
   robot.setCartesianImpedance({{3000, 3000, 3000, 300, 300, 300}});
+
+  //configure load of sensor/cable on EE
   double ft_sensor_mass = 0.75; // kg
   const std::array<double,3> F_x_C_Load = {0.0,0.0,0.0}; //Fxcload in m
   const std::array<double,9> load_inertia = { 1.0,0.0,0.0,

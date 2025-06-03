@@ -73,6 +73,7 @@ private:
 };
 
 std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec) {
+  std::cout << x0_vec << std::endl;
   // Parameters
   double v0 = 0.0;
   double m = 1.0;
@@ -93,7 +94,7 @@ std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec) {
   positions[0] = x;
 
   // Derivative functions
-  auto dx_dt = [](const Eigen::Vector3d& x, const Eigen::Vector3d& v) {
+  auto dx_dt = [](const Eigen::Vector3d& v) {
       return v;
   };
 
@@ -103,16 +104,16 @@ std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec) {
 
   // RK4 Integration
   for (int i = 1; i < n_steps; ++i) {
-      Eigen::Vector3d k1_x = dx_dt(x, v);
+      Eigen::Vector3d k1_x = dx_dt(v);
       Eigen::Vector3d k1_v = dv_dt(x, v);
 
-      Eigen::Vector3d k2_x = dx_dt(x + 0.5 * dt * k1_x, v + 0.5 * dt * k1_v);
+      Eigen::Vector3d k2_x = dx_dt(v + 0.5 * dt * k1_v);
       Eigen::Vector3d k2_v = dv_dt(x + 0.5 * dt * k1_x, v + 0.5 * dt * k1_v);
 
-      Eigen::Vector3d k3_x = dx_dt(x + 0.5 * dt * k2_x, v + 0.5 * dt * k2_v);
+      Eigen::Vector3d k3_x = dx_dt(v + 0.5 * dt * k2_v);
       Eigen::Vector3d k3_v = dv_dt(x + 0.5 * dt * k2_x, v + 0.5 * dt * k2_v);
 
-      Eigen::Vector3d k4_x = dx_dt(x + dt * k3_x, v + dt * k3_v);
+      Eigen::Vector3d k4_x = dx_dt(v + dt * k3_v);
       Eigen::Vector3d k4_v = dv_dt(x + dt * k3_x, v + dt * k3_v);
 
       x += (dt / 6.0) * (k1_x + 2*k2_x + 2*k3_x + k4_x);
@@ -149,7 +150,7 @@ int main(int argc, char** argv) {
   const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
-  const double virtual_mass_scaling{10.0};
+  const double virtual_mass_scaling{1.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -222,8 +223,8 @@ int main(int argc, char** argv) {
 
       // spring point is about 0.3 in the y direction
       Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
-      Eigen::Vector3d position_spring(initial_transform.translation());
-      expected = simulate(position_spring);
+      Eigen::Vector3d position_spring(spring_transform.translation());
+      expected = simulate(position_spring - position_d);
     }
 
     // set collision behavior
@@ -310,10 +311,11 @@ int main(int argc, char** argv) {
 
       //MR 11.66, using mass matrix of robot as virtual mass. Have not found a better alternative after testing.
       Eigen::VectorXd ddx_d(6);
-      ddx_d << alpha.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
+      ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
-      Eigen::VectorXd tau_task(7), tau_d(7);
+      Eigen::VectorXd tau_task(7), tau_d(7), tau_comp(7), tau_tot(7), friction_comp(7);
+      // Eigen::VectorXd tau_comp(7), tau_tot(7), friction_comp(7);
 
       //different methods for calcuating torque from force input, often results in same calculation but not always?
       //MR 11.66
@@ -322,8 +324,36 @@ int main(int argc, char** argv) {
       //MR 8.1
       tau_task << mass * ddq_d;
 
-      // std::cout << "task: " << tau_task << std::endl;
       tau_d << tau_task + coriolis;
+
+      // tau_comp.setZero(); 
+      // // account for friction as a proportion of joint velocity
+      // if (dq[0] < -0.001) {
+      //   tau_comp[0] = -0.1;
+      // } else if (dq[0] > 0.001) {
+      //   tau_comp[0] = 0.1;
+      // }
+      // if (dq[1] < -0.1) {
+      //   tau_comp[1] = -0.7;
+      // } else if (dq[1] > 0.1) {
+      //   tau_comp[1] = 0.7;
+      // }
+      // if (dq[2] < -0.01) {
+      //   tau_comp[2] = -0.18;
+      // } else if (dq[2] > 0.01) {
+      //   tau_comp[2] = 0.18;
+      // }
+      // if (dq[3] < -0.01) {
+      //   tau_comp[3] = -0.4;
+      // } else if (dq[3] > 0.01) {
+      //   tau_comp[3] = 0.4;
+      // }
+      
+      // friction_comp << 0.06,0.6,0.12,0.2,0.0,0.0,0.0;
+      // tau_comp << friction_comp.array() * dq.array();
+      // tau_tot << tau_comp + tau_d;
+
+      // tau_tot << tau_comp + tau_d;
 
       std::array<double, 7> tau_d_array{};
       Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
@@ -336,9 +366,7 @@ int main(int argc, char** argv) {
       count++;
 
       if (expected.size() > 0 && fullCount < 10000) {
-        predicted[0] = expected[fullCount][0];
-        predicted[1] = expected[fullCount][1];
-        predicted[2] = expected[fullCount][2];
+        predicted = expected[fullCount] + position_d;
       }
       fullCount++;
 
