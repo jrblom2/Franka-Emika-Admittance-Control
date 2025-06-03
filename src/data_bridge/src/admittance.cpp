@@ -1,6 +1,7 @@
 // Copyright (c) 2017 Franka Emika GmbH
 // Use of this source code is governed by the Apache-2.0 license, see LICENSE
 #include <array>
+#include <vector>
 #include <cmath>
 #include <functional>
 #include <iostream>
@@ -71,6 +72,57 @@ private:
   SafeQueue<queue_package> & squeue_transfer_;
 };
 
+std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec) {
+  // Parameters
+  double v0 = 0.0;
+  double m = 1.0;
+  double k = 20.0;
+  double c = 0.0;
+
+  // Time setup
+  double dt = 0.001;
+  double T = 10.0;
+  int n_steps = static_cast<int>(T / dt);
+
+  // Storage for the result
+  std::vector<Eigen::Vector3d> positions(n_steps);
+
+  // Initial state
+  Eigen::Vector3d x = x0_vec;
+  Eigen::Vector3d v = Eigen::Vector3d::Constant(v0);
+  positions[0] = x;
+
+  // Derivative functions
+  auto dx_dt = [](const Eigen::Vector3d& x, const Eigen::Vector3d& v) {
+      return v;
+  };
+
+  auto dv_dt = [&](const Eigen::Vector3d& x, const Eigen::Vector3d& v) {
+      return (-c * v - k * x) / m;
+  };
+
+  // RK4 Integration
+  for (int i = 1; i < n_steps; ++i) {
+      Eigen::Vector3d k1_x = dx_dt(x, v);
+      Eigen::Vector3d k1_v = dv_dt(x, v);
+
+      Eigen::Vector3d k2_x = dx_dt(x + 0.5 * dt * k1_x, v + 0.5 * dt * k1_v);
+      Eigen::Vector3d k2_v = dv_dt(x + 0.5 * dt * k1_x, v + 0.5 * dt * k1_v);
+
+      Eigen::Vector3d k3_x = dx_dt(x + 0.5 * dt * k2_x, v + 0.5 * dt * k2_v);
+      Eigen::Vector3d k3_v = dv_dt(x + 0.5 * dt * k2_x, v + 0.5 * dt * k2_v);
+
+      Eigen::Vector3d k4_x = dx_dt(x + dt * k3_x, v + dt * k3_v);
+      Eigen::Vector3d k4_v = dv_dt(x + dt * k3_x, v + dt * k3_v);
+
+      x += (dt / 6.0) * (k1_x + 2*k2_x + 2*k3_x + k4_x);
+      v += (dt / 6.0) * (k1_v + 2*k2_v + 2*k3_v + k4_v);
+
+      positions[i] = x;
+  }
+
+  return positions;
+}
 /**
  * @example cartesian_impedance_control.cpp
  * An example showing a simple cartesian impedance controller without inertia shaping
@@ -93,7 +145,7 @@ int main(int argc, char** argv) {
   std::string calc_mode{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{100.0};
+  const double translational_stiffness{20.0};
   const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
@@ -157,6 +209,22 @@ int main(int argc, char** argv) {
     Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
     Eigen::Vector3d position_d(initial_transform.translation());
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
+
+    std::vector<Eigen::Vector3d> expected;
+    if (calc_mode == "SPRING" or calc_mode == "SPRINGY") {
+      std::array<double, 7> springY_goal = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
+      MotionGenerator spring_motion_generator(0.5, springY_goal);
+
+      robot.control(spring_motion_generator);
+      std::cout << "Finished moving to spring offset configuration." << std::endl;
+
+      franka::RobotState spring_state = robot.readOnce();
+
+      // spring point is about 0.3 in the y direction
+      Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
+      Eigen::Vector3d position_spring(initial_transform.translation());
+      expected = simulate(position_spring);
+    }
 
     // set collision behavior
     robot.setCollisionBehavior({{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
@@ -264,7 +332,16 @@ int main(int argc, char** argv) {
 
       // publish results
       static int count = 0;
+      static int fullCount = 0;
       count++;
+
+      if (expected.size() > 0 && fullCount < 10000) {
+        predicted[0] = expected[fullCount][0];
+        predicted[1] = expected[fullCount][1];
+        predicted[2] = expected[fullCount][2];
+      }
+      fullCount++;
+
       if (count == 10) {
         queue_package new_package;
         new_package.wrench = Eigen::Matrix<double, 6, 1>(fext);
