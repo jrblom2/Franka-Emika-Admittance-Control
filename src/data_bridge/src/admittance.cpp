@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
           model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
       std::array<double, 49> mass_array = model.mass(robot_state);
                       
-      //update sensor data
+      // update sensor data
       sensor.read();
       std::array<double, 6> ft_reading = sensor.ft_sensor_measurements_;
 
@@ -267,15 +267,15 @@ int main(int argc, char** argv) {
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
-      
+
       // TODO wrench translations should all be part of the adjoint
-      //translate wrench from FT sensor as wrench in EE frame. MR 3.98
+      // translate wrench from FT sensor as wrench in EE frame. MR 3.98
       fext = sensor_adjoint.transpose() * fext;
-      //swap sign for gravity
+      // swap sign for gravity
       fext(2) = -fext(2);
-      //swap sign for x-axis
+      // swap sign for x-axis
       fext(0) = -fext(0);
-      //torque in Z and X already resist user, invert Y to also resist user
+      // torque in Z and X already resist user, invert Y to also resist user
       fext(4) = -fext(4);
       
       // static, set initial to current jacobian. Double check this.
@@ -320,21 +320,38 @@ int main(int argc, char** argv) {
       // Transform to base frame
       error.tail(3) << -transform.rotation() * error.tail(3);
 
-      //MR 11.66, using mass matrix of robot as virtual mass. Have not found a better alternative after testing.
+      // MR 11.66, using mass matrix of robot as virtual mass. Have not found a better alternative after testing.
       Eigen::VectorXd ddx_d(6);
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
-      Eigen::VectorXd tau_task(7), tau_d(7);
+      Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
 
-      //MR 11.66
+      // MR 11.66
       Eigen::VectorXd ddq_d(7);
       ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
-      //MR 8.1
+      // MR 8.1
       tau_task << mass * ddq_d;
+      
+      // PI control to account for sticky slow movements
+      double P_gain = 0.001;
+      static Eigen::Matrix<double, 7, 1> old_dq = dq;
 
-      tau_d << tau_task + coriolis;
+      // observed joint acceleration, diff in velocities over time.
+      Eigen::Matrix<double, 7, 1> observed_ddq;
+      if (duration.toSec() < 0.00000001) {
+        observed_ddq = ddq_d;
+      else {
+        observed_ddq = (dq - old_dq) / duration.toSec();
+      }
+      // error equals current desired acceleration - what we just observed?
+      Eigen::Matrix<double, 7, 1> ddq_error = ddq_d - observed_ddq;
+      Eigen::Matrix<double, 7, 1> PI_ddq = P_gain * ddq_error;
+      tau_error << mass * PI_ddq;
+      old_dq = dq;
 
+      // add all control elements together
+      tau_d << tau_task + coriolis + tau_error;
       std::array<double, 7> tau_d_array{};
       Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 

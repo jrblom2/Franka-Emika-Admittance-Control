@@ -25,7 +25,6 @@ target_link_libraries(examples_common PUBLIC Franka::Franka)
 add_subdirectory(src/net_ft)
 
 set(EXAMPLES
-  data_node
   cartesian_impedance_control
   white_light
   admittance

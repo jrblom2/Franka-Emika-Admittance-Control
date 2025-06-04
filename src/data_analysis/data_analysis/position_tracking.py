@@ -68,7 +68,7 @@ class MinimalSubscriber(Node):
         (lineR,) = ax.plot([], [], 'r-', label='Roll')
         (lineP,) = ax.plot([], [], 'g-', label='Pitch')
         (lineY,) = ax.plot([], [], 'b-', label='Yaw')
-        ax.set_title("Roll Pitch Yaw From Rest")
+        ax.set_title("Roll Pitch Yaw")
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Position (radians)")
         ax.set_ylim(-3.14, 3.14)
@@ -78,7 +78,7 @@ class MinimalSubscriber(Node):
         # Position Error magnitude
         ax = self.axes[1, 1]
         (lineErrorMag,) = ax.plot([], [], 'r-', label='Error Magnitude')
-        ax.set_title("Magnitude of actual position versus computed")
+        ax.set_title("Magnitude of Position Error")
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Magnitude (meters)")
         ax.legend()
@@ -91,7 +91,7 @@ class MinimalSubscriber(Node):
         (lineZWrench,) = ax.plot([], [], 'b-', label='Z Force')
         ax.set_title("Force Commanded by Controller")
         ax.set_xlabel("Time (seconds)")
-        ax.set_ylabel("Magnitude (N)")
+        ax.set_ylabel("Magnitude (M/S^2)")
         ax.legend()
         self.lines.extend([lineXWrench, lineYWrench, lineZWrench])
 
