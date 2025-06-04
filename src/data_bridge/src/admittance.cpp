@@ -17,111 +17,9 @@
 #include "examples_common.h"
 #include "net_ft/hardware_interface.hpp"
 #include "SafeQueue.hpp"
+#include "spring_simulate.hpp"
+#include "minimal_publisher.hpp"
 
-#include "data_interfaces/msg/robot.hpp"
-#include "rclcpp/rclcpp.hpp"
-
-struct queue_package {
-  Eigen::Matrix<double, 6, 1> desired_wrench;
-  Eigen::Matrix<double, 3, 1> orientation_error;
-  Eigen::Vector3d translation;
-  Eigen::Vector3d translation_d;
-};
-
-class MinimalPublisher : public rclcpp::Node
-{
-public:
-  MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
-  : Node("minimal_publisher"), squeue_transfer_(squeue_transfer)
-  {
-    publisher_ = this->create_publisher<data_interfaces::msg::Robot>("robot_data", 10);
-    auto timer_callback =
-      [this]() -> void {
-        queue_package data;
-        auto message = data_interfaces::msg::Robot();
-
-        while(squeue_transfer_.Consume(data)) {
-          message.wrench.force.x = data.desired_wrench(0,0);
-          message.wrench.force.y = data.desired_wrench(1,0);
-          message.wrench.force.z = data.desired_wrench(2,0);
-          message.wrench.torque.x = data.desired_wrench(3,0);
-          message.wrench.torque.y = data.desired_wrench(4,0);
-          message.wrench.torque.z = data.desired_wrench(5,0);
-
-          message.position.position.x = data.translation[0];
-          message.position.position.y = data.translation[1];
-          message.position.position.z = data.translation[2];
-
-          message.position.orientation.x = data.orientation_error(0,0);
-          message.position.orientation.y = data.orientation_error(1,0);
-          message.position.orientation.z = data.orientation_error(2,0);
-          message.position.orientation.w = 1.0;
-
-          message.position_d.position.x = data.translation_d[0];
-          message.position_d.position.y = data.translation_d[1];
-          message.position_d.position.z = data.translation_d[2];
-          this->publisher_->publish(message);
-        }
-      };
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(10), timer_callback);
-  }
-
-private:
-  rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<data_interfaces::msg::Robot>::SharedPtr publisher_;
-  SafeQueue<queue_package> & squeue_transfer_;
-};
-
-std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m) {
-  // Parameters
-  double v0 = 0.0;
-
-  // Time setup
-  double dt = 0.001;
-  double T = 10.0;
-  int n_steps = static_cast<int>(T / dt);
-
-  // Storage for the result
-  std::vector<Eigen::Vector3d> positions(n_steps);
-
-  // Initial state
-  Eigen::Vector3d x = x0_vec;
-  Eigen::Vector3d v = Eigen::Vector3d::Constant(v0);
-  positions[0] = x;
-
-  // Derivative functions
-  auto dx_dt = [](const Eigen::Vector3d& v) {
-      return v;
-  };
-
-  auto dv_dt = [&](const Eigen::Vector3d& x, const Eigen::Vector3d& v) {
-      
-    Eigen::Vector3d dv = (-c * v - k * x).array() / m.array();
-    return dv;
-  };
-
-  // RK4 Integration
-  for (int i = 1; i < n_steps; ++i) {
-      Eigen::Vector3d k1_x = dx_dt(v);
-      Eigen::Vector3d k1_v = dv_dt(x, v);
-
-      Eigen::Vector3d k2_x = dx_dt(v + 0.5 * dt * k1_v);
-      Eigen::Vector3d k2_v = dv_dt(x + 0.5 * dt * k1_x, v + 0.5 * dt * k1_v);
-
-      Eigen::Vector3d k3_x = dx_dt(v + 0.5 * dt * k2_v);
-      Eigen::Vector3d k3_v = dv_dt(x + 0.5 * dt * k2_x, v + 0.5 * dt * k2_v);
-
-      Eigen::Vector3d k4_x = dx_dt(v + dt * k3_v);
-      Eigen::Vector3d k4_v = dv_dt(x + dt * k3_x, v + dt * k3_v);
-
-      x += (dt / 6.0) * (k1_x + 2*k2_x + 2*k3_x + k4_x);
-      v += (dt / 6.0) * (k1_v + 2*k2_v + 2*k3_v + k4_v);
-
-      positions[i] = x;
-  }
-
-  return positions;
-}
 /**
  * @example cartesian_impedance_control.cpp
  * An example showing a simple cartesian impedance controller without inertia shaping
@@ -403,7 +301,6 @@ int main(int argc, char** argv) {
     executor.add_node(node);
     std::thread spin_thread([&executor](){ executor.spin(); });
 
-    // std::thread transfer_thread(transfer_callback);
     robot.control(impedance_control_callback);
 
     rclcpp::shutdown();

@@ -15,11 +15,18 @@ find_package(rclcpp REQUIRED)
 # set up examples_utils library
 add_library(examples_common STATIC
   src/examples_common.cpp
+  src/spring_simulate.cpp
+  src/minimal_publisher.cpp
 )
 target_include_directories(examples_common PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_link_libraries(examples_common PUBLIC Franka::Franka)
+# target_link_libraries(examples_common PUBLIC Franka::Franka)
+ament_target_dependencies(examples_common
+  Franka
+  rclcpp
+  data_interfaces
+)
 
 # build ft sensor
 add_subdirectory(src/net_ft)
