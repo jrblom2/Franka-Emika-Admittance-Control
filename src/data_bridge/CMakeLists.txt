@@ -12,6 +12,9 @@ find_package(Eigen3 REQUIRED)
 find_package(data_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 
+# build ft sensor
+add_subdirectory(src/net_ft)
+
 # set up examples_utils library
 add_library(utilities STATIC
   src/examples_common.cpp
@@ -21,14 +24,12 @@ add_library(utilities STATIC
 target_include_directories(utilities PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+
 ament_target_dependencies(utilities
   Franka
   rclcpp
   data_interfaces
 )
-
-# build ft sensor
-add_subdirectory(src/net_ft)
 
 set(EXAMPLES
   cartesian_impedance_control
