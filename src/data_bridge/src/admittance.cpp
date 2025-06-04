@@ -146,11 +146,11 @@ int main(int argc, char** argv) {
   std::string calc_mode{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{20.0};
+  const double translational_stiffness{100.0};
   const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
-  const double virtual_mass_scaling{1.0};
+  const double virtual_mass_scaling{5.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -212,7 +212,7 @@ int main(int argc, char** argv) {
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
 
     std::vector<Eigen::Vector3d> expected;
-    if (calc_mode == "SPRING" or calc_mode == "SPRINGY") {
+    if (calc_mode == "SPRINGDEMO") {
       std::array<double, 7> springY_goal = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
       MotionGenerator spring_motion_generator(0.5, springY_goal);
 
@@ -293,7 +293,7 @@ int main(int argc, char** argv) {
         error.head(3).setZero();
       } else if (calc_mode == "SPRINGY") {
         error.segment<3>(0) << 0.0, position(1) - position_d(1), 0.0;
-      } else if (calc_mode == "SPRING") {
+      } else if (calc_mode == "SPRING" || calc_mode == "SPRINGDEMO") {
         error.head(3) << position - position_d;
       }
       
@@ -311,10 +311,12 @@ int main(int argc, char** argv) {
 
       //MR 11.66, using mass matrix of robot as virtual mass. Have not found a better alternative after testing.
       Eigen::VectorXd ddx_d(6);
-      ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
+      std::cout << "alpha: " << std::endl;
+      std::cout << alpha << std::endl;
+      ddx_d << alpha.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
-      Eigen::VectorXd tau_task(7), tau_d(7), tau_comp(7), tau_tot(7), friction_comp(7);
+      Eigen::VectorXd tau_task(7), tau_d(7);
       // Eigen::VectorXd tau_comp(7), tau_tot(7), friction_comp(7);
 
       //different methods for calcuating torque from force input, often results in same calculation but not always?
