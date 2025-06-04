@@ -231,18 +231,20 @@ int main(int argc, char** argv) {
       // MR 8.1
       tau_task << mass * ddq_d;
       
-      // // PI control to account for sticky slow movements
+      // PI control to account for sticky slow movements
       // double P_gain = 0.07;
-      // static Eigen::Matrix<double, 7, 1> old_dq = dq;
+      std::cout << dq << std::endl;
+      static Eigen::Matrix<double, 7, 1> old_dq = dq;
 
-      // // observed joint acceleration, diff in velocities over time.
-      // Eigen::Matrix<double, 7, 1> observed_ddq;
-      // if (duration.toSec() < 0.00000001) {
-      //   observed_ddq = ddq_d;
-      // } else {
-      //   observed_ddq = (dq - old_dq) / duration.toSec();
-      // }
-      // // error equals current desired acceleration - what we just observed?
+      // observed joint acceleration, diff in velocities over time.
+      Eigen::Matrix<double, 7, 1> observed_ddq;
+      if (duration.toSec() < 0.00000001) {
+        observed_ddq = ddq_d;
+      } else {
+        observed_ddq = (dq - old_dq) / duration.toSec();
+      }
+
+      // error equals current desired acceleration - what we just observed?
       // Eigen::Matrix<double, 7, 1> ddq_error = ddq_d - observed_ddq;
       // Eigen::Matrix<double, 7, 1> PI_ddq = P_gain * ddq_error;
       // tau_error << mass * PI_ddq;
@@ -274,6 +276,8 @@ int main(int argc, char** argv) {
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted);
+        new_package.torques_d = ddq_d;
+        new_package.torques_o = observed_ddq;
         transfer_package.Produce(std::move(new_package));
         count = 0;
       }

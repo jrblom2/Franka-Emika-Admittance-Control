@@ -16,6 +16,8 @@ struct queue_package {
 	Eigen::Matrix<double, 3, 1> orientation_error;
 	Eigen::Vector3d translation;
 	Eigen::Vector3d translation_d;
+	Eigen::VectorXd torques_d;
+	Eigen::VectorXd torques_o;
 };
 
 template<class T>
