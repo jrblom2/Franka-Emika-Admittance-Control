@@ -333,25 +333,28 @@ int main(int argc, char** argv) {
       // MR 8.1
       tau_task << mass * ddq_d;
       
-      // PI control to account for sticky slow movements
-      double P_gain = 0.001;
-      static Eigen::Matrix<double, 7, 1> old_dq = dq;
+      // // PI control to account for sticky slow movements
+      // double P_gain = 0.07;
+      // static Eigen::Matrix<double, 7, 1> old_dq = dq;
 
-      // observed joint acceleration, diff in velocities over time.
-      Eigen::Matrix<double, 7, 1> observed_ddq;
-      if (duration.toSec() < 0.00000001) {
-        observed_ddq = ddq_d;
-      else {
-        observed_ddq = (dq - old_dq) / duration.toSec();
-      }
-      // error equals current desired acceleration - what we just observed?
-      Eigen::Matrix<double, 7, 1> ddq_error = ddq_d - observed_ddq;
-      Eigen::Matrix<double, 7, 1> PI_ddq = P_gain * ddq_error;
-      tau_error << mass * PI_ddq;
-      old_dq = dq;
+      // // observed joint acceleration, diff in velocities over time.
+      // Eigen::Matrix<double, 7, 1> observed_ddq;
+      // if (duration.toSec() < 0.00000001) {
+      //   observed_ddq = ddq_d;
+      // } else {
+      //   observed_ddq = (dq - old_dq) / duration.toSec();
+      // }
+      // // error equals current desired acceleration - what we just observed?
+      // Eigen::Matrix<double, 7, 1> ddq_error = ddq_d - observed_ddq;
+      // Eigen::Matrix<double, 7, 1> PI_ddq = P_gain * ddq_error;
+      // tau_error << mass * PI_ddq;
+      // old_dq = dq;
+
+      // std::cout << "tau task: " << tau_task << std::endl;
+      // std::cout << "tau_error: " << tau_error << std::endl;
 
       // add all control elements together
-      tau_d << tau_task + coriolis + tau_error;
+      tau_d << tau_task + coriolis;
       std::array<double, 7> tau_d_array{};
       Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 

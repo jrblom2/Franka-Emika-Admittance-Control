@@ -86,10 +86,10 @@ class MinimalSubscriber(Node):
 
         # Commanded Wrench on EE
         ax = self.axes[1, 2]
-        (lineXWrench,) = ax.plot([], [], 'r-', label='X Force')
-        (lineYWrench,) = ax.plot([], [], 'g-', label='Y Force')
-        (lineZWrench,) = ax.plot([], [], 'b-', label='Z Force')
-        ax.set_title("Force Commanded by Controller")
+        (lineXWrench,) = ax.plot([], [], 'r-', label='X')
+        (lineYWrench,) = ax.plot([], [], 'g-', label='Y')
+        (lineZWrench,) = ax.plot([], [], 'b-', label='Z')
+        ax.set_title("Commanded Acceleration")
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Magnitude (M/S^2)")
         ax.legend()
