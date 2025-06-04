@@ -72,13 +72,10 @@ private:
   SafeQueue<queue_package> & squeue_transfer_;
 };
 
-std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec) {
+std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m) {
   std::cout << x0_vec << std::endl;
   // Parameters
   double v0 = 0.0;
-  double m = 1.0;
-  double k = 20.0;
-  double c = 0.0;
 
   // Time setup
   double dt = 0.001;
@@ -99,7 +96,9 @@ std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec) {
   };
 
   auto dv_dt = [&](const Eigen::Vector3d& x, const Eigen::Vector3d& v) {
-      return (-c * v - k * x) / m;
+      
+    Eigen::Vector3d dv = (-c * v - k * x).array() / m.array();
+    return dv;
   };
 
   // RK4 Integration
@@ -150,7 +149,7 @@ int main(int argc, char** argv) {
   const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
-  const double virtual_mass_scaling{5.0};
+  const double virtual_mass_scaling{1.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -160,15 +159,16 @@ int main(int argc, char** argv) {
                                      Eigen::MatrixXd::Identity(3, 3);
   damping.bottomRightCorner(3, 3) << rotational_damping_factor * sqrt(rotational_stiffness) *
                                          Eigen::MatrixXd::Identity(3, 3);
+  
+  //mass matrix of robot is about as follows:
   virtual_mass.setZero();
-  virtual_mass.topLeftCorner(3, 3) << virtual_mass_scaling * Eigen::MatrixXd::Identity(3, 3);
-  virtual_mass.bottomRightCorner(3, 3) << virtual_mass_scaling * Eigen::MatrixXd::Identity(3, 3);
   virtual_mass(0,0) = 11;
   virtual_mass(1,1) = 4;
   virtual_mass(2,2) = 5;
   virtual_mass(3,3) = 1;
   virtual_mass(4,4) = 1;
   virtual_mass(5,5) = 1;
+  virtual_mass = virtual_mass * virtual_mass_scaling;
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -230,7 +230,12 @@ int main(int argc, char** argv) {
       // spring point is about 0.3 in the y direction
       Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
       Eigen::Vector3d position_spring(spring_transform.translation());
-      expected = simulate(position_spring - position_d);
+      expected = simulate(
+        position_spring - position_d,
+        translational_stiffness, 
+        translational_damping_factor * sqrt(translational_stiffness),
+        virtual_mass.diagonal().head<3>()
+      );
     }
 
     // set collision behavior
