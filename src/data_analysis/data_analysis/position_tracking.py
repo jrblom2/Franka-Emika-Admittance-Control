@@ -23,6 +23,10 @@ class MinimalSubscriber(Node):
         self.roll = []
         self.pitch = []
         self.yaw = []
+        self.xForce = []
+        self.yForce = []
+        self.zForce = []
+
         self.time = []
 
         plt.ion()
@@ -80,6 +84,17 @@ class MinimalSubscriber(Node):
         ax.legend()
         self.lines.extend([lineErrorMag])
 
+        # Commanded Wrench on EE
+        ax = self.axes[1, 2]
+        (lineXWrench,) = ax.plot([], [], 'r-', label='X Force')
+        (lineYWrench,) = ax.plot([], [], 'g-', label='Y Force')
+        (lineZWrench,) = ax.plot([], [], 'b-', label='Z Force')
+        ax.set_title("Force Commanded by Controller")
+        ax.set_xlabel("Time (seconds)")
+        ax.set_ylabel("Magnitude (N)")
+        ax.legend()
+        self.lines.extend([lineXWrench, lineYWrench, lineZWrench])
+
         self.counter = 0
 
     def listener_callback(self, msg):
@@ -97,6 +112,10 @@ class MinimalSubscriber(Node):
         desired = np.array([msg.position_d.position.x, msg.position_d.position.y, msg.position_d.position.z])
         error = np.linalg.norm(actual - desired)
         self.positionErrorMag.append(error)
+
+        self.xForce.append(msg.wrench.force.x)
+        self.yForce.append(msg.wrench.force.y)
+        self.zForce.append(msg.wrench.force.z)
 
         self.time.append(self.counter / 100)
         self.counter += 1
@@ -126,6 +145,12 @@ class MinimalSubscriber(Node):
         self.lines[9].set_data(self.time, self.positionErrorMag)
         self.axes[1, 1].relim()
         self.axes[1, 1].autoscale_view()
+
+        self.lines[10].set_data(self.time, self.xForce)
+        self.lines[11].set_data(self.time, self.yForce)
+        self.lines[12].set_data(self.time, self.zForce)
+        self.axes[1, 2].relim()
+        self.axes[1, 2].autoscale_view()
 
         self.fig.tight_layout()
         self.fig.canvas.draw()

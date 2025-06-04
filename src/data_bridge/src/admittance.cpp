@@ -22,7 +22,7 @@
 #include "rclcpp/rclcpp.hpp"
 
 struct queue_package {
-  Eigen::Matrix<double, 6, 1> wrench;
+  Eigen::Matrix<double, 6, 1> desired_wrench;
   Eigen::Matrix<double, 3, 1> orientation_error;
   Eigen::Vector3d translation;
   Eigen::Vector3d translation_d;
@@ -41,12 +41,12 @@ public:
         auto message = data_interfaces::msg::Robot();
 
         while(squeue_transfer_.Consume(data)) {
-          message.wrench.force.x = data.wrench(0,0);
-          message.wrench.force.y = data.wrench(1,0);
-          message.wrench.force.z = data.wrench(2,0);
-          message.wrench.torque.x = data.wrench(3,0);
-          message.wrench.torque.y = data.wrench(4,0);
-          message.wrench.torque.z = data.wrench(5,0);
+          message.wrench.force.x = data.desired_wrench(0,0);
+          message.wrench.force.y = data.desired_wrench(1,0);
+          message.wrench.force.z = data.desired_wrench(2,0);
+          message.wrench.torque.x = data.desired_wrench(3,0);
+          message.wrench.torque.y = data.desired_wrench(4,0);
+          message.wrench.torque.z = data.desired_wrench(5,0);
 
           message.position.position.x = data.translation[0];
           message.position.position.y = data.translation[1];
@@ -352,7 +352,7 @@ int main(int argc, char** argv) {
 
       if (count == 10) {
         queue_package new_package;
-        new_package.wrench = Eigen::Matrix<double, 6, 1>(fext);
+        new_package.desired_wrench = Eigen::Matrix<double, 6, 1>(ddx_d);
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted);
