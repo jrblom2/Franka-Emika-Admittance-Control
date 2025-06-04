@@ -163,6 +163,12 @@ int main(int argc, char** argv) {
   virtual_mass.setZero();
   virtual_mass.topLeftCorner(3, 3) << virtual_mass_scaling * Eigen::MatrixXd::Identity(3, 3);
   virtual_mass.bottomRightCorner(3, 3) << virtual_mass_scaling * Eigen::MatrixXd::Identity(3, 3);
+  virtual_mass(0,0) = 11;
+  virtual_mass(1,1) = 4;
+  virtual_mass(2,2) = 5;
+  virtual_mass(3,3) = 1;
+  virtual_mass(4,4) = 1;
+  virtual_mass(5,5) = 1;
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -283,6 +289,7 @@ int main(int argc, char** argv) {
       old_jacobian = jacobian;
       
       // mass matrix in cartesian space, Alpha. Use this in place of any operation using M but needs 6x6
+      // diagnol of alpha is about 11,4,5,1,1,1
       Eigen::Matrix<double, 6, 6> alpha;
       alpha << (jacobian * mass.inverse() * jacobian.transpose()).inverse();
 
@@ -311,9 +318,7 @@ int main(int argc, char** argv) {
 
       //MR 11.66, using mass matrix of robot as virtual mass. Have not found a better alternative after testing.
       Eigen::VectorXd ddx_d(6);
-      std::cout << "alpha: " << std::endl;
-      std::cout << alpha << std::endl;
-      ddx_d << alpha.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
+      ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
       Eigen::VectorXd tau_task(7), tau_d(7);
