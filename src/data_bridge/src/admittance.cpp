@@ -73,7 +73,6 @@ private:
 };
 
 std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m) {
-  std::cout << x0_vec << std::endl;
   // Parameters
   double v0 = 0.0;
 
@@ -145,7 +144,7 @@ int main(int argc, char** argv) {
   std::string calc_mode{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{100.0};
+  const double translational_stiffness{10.0};
   const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
@@ -327,9 +326,7 @@ int main(int argc, char** argv) {
 
       // compute control
       Eigen::VectorXd tau_task(7), tau_d(7);
-      // Eigen::VectorXd tau_comp(7), tau_tot(7), friction_comp(7);
 
-      //different methods for calcuating torque from force input, often results in same calculation but not always?
       //MR 11.66
       Eigen::VectorXd ddq_d(7);
       ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
@@ -337,35 +334,6 @@ int main(int argc, char** argv) {
       tau_task << mass * ddq_d;
 
       tau_d << tau_task + coriolis;
-
-      // tau_comp.setZero(); 
-      // // account for friction as a proportion of joint velocity
-      // if (dq[0] < -0.001) {
-      //   tau_comp[0] = -0.1;
-      // } else if (dq[0] > 0.001) {
-      //   tau_comp[0] = 0.1;
-      // }
-      // if (dq[1] < -0.1) {
-      //   tau_comp[1] = -0.7;
-      // } else if (dq[1] > 0.1) {
-      //   tau_comp[1] = 0.7;
-      // }
-      // if (dq[2] < -0.01) {
-      //   tau_comp[2] = -0.18;
-      // } else if (dq[2] > 0.01) {
-      //   tau_comp[2] = 0.18;
-      // }
-      // if (dq[3] < -0.01) {
-      //   tau_comp[3] = -0.4;
-      // } else if (dq[3] > 0.01) {
-      //   tau_comp[3] = 0.4;
-      // }
-      
-      // friction_comp << 0.06,0.6,0.12,0.2,0.0,0.0,0.0;
-      // tau_comp << friction_comp.array() * dq.array();
-      // tau_tot << tau_comp + tau_d;
-
-      // tau_tot << tau_comp + tau_d;
 
       std::array<double, 7> tau_d_array{};
       Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
