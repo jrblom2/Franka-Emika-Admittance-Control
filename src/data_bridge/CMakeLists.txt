@@ -13,16 +13,15 @@ find_package(data_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 
 # set up examples_utils library
-add_library(examples_common STATIC
+add_library(utilities STATIC
   src/examples_common.cpp
   src/spring_simulate.cpp
   src/minimal_publisher.cpp
 )
-target_include_directories(examples_common PUBLIC
+target_include_directories(utilities PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-# target_link_libraries(examples_common PUBLIC Franka::Franka)
-ament_target_dependencies(examples_common
+ament_target_dependencies(utilities
   Franka
   rclcpp
   data_interfaces
@@ -46,15 +45,10 @@ foreach(example ${EXAMPLES})
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
   # link libraries
-  target_link_libraries(${example} Franka::Franka examples_common ft_interface)
+  target_link_libraries(${example} Franka::Franka utilities ft_interface)
 
   # c and cpp standards
   target_compile_features(${example} PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-
-  ament_target_dependencies(${example}
-    rclcpp
-    data_interfaces
-  )
   # where does it go? It goes in lib
   install(TARGETS ${example}
   DESTINATION lib/${PROJECT_NAME})
