@@ -18,6 +18,8 @@ struct queue_package {
 	Eigen::Vector3d translation_d;
 	Eigen::VectorXd torques_d;
 	Eigen::VectorXd torques_o;
+	Eigen::VectorXd torques_c;
+	Eigen::VectorXd torques_g;
 };
 
 template<class T>

@@ -40,6 +40,16 @@ MinimalPublisher::MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
           message.torques_observed[i] = data.torques_o(i);
       }
 
+      message.torques_coriolis.resize(7);
+      for (size_t i = 0; i < 7; ++i) {
+          message.torques_coriolis[i] = data.torques_c(i);
+      }
+
+      message.torques_gravity.resize(7);
+      for (size_t i = 0; i < 7; ++i) {
+          message.torques_gravity[i] = data.torques_g(i);
+      }
+
       publisher_->publish(message);
     }
   };

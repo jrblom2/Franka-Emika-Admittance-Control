@@ -147,6 +147,7 @@ int main(int argc, char** argv) {
                                          franka::Duration duration) -> franka::Torques {
       // get state variables
       std::array<double, 7> coriolis_array = model.coriolis(robot_state);
+      std::array<double, 7> gravity_array = model.gravity(robot_state);
       std::array<double, 42> jacobian_array =
           model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
       std::array<double, 49> mass_array = model.mass(robot_state);
@@ -157,10 +158,13 @@ int main(int argc, char** argv) {
 
       // convert to Eigen
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
+      Eigen::Map<const Eigen::Matrix<double, 7, 1>> gravity(gravity_array.data());
       Eigen::Map<const Eigen::Matrix<double, 6, 7>> jacobian(jacobian_array.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 7>> mass(mass_array.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> q(robot_state.q.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
+      Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J(robot_state.tau_J.data());
+      Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J_d(robot_state.tau_J_d.data());
       Eigen::Map<Eigen::Matrix<double, 6, 1>> fext(ft_reading.data());
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
@@ -220,6 +224,7 @@ int main(int argc, char** argv) {
 
       // MR 11.66, using mass matrix of robot as virtual mass. Have not found a better alternative after testing.
       Eigen::VectorXd ddx_d(6);
+      fext.setZero();
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
@@ -233,16 +238,11 @@ int main(int argc, char** argv) {
       
       // PI control to account for sticky slow movements
       // double P_gain = 0.07;
-      std::cout << dq << std::endl;
       static Eigen::Matrix<double, 7, 1> old_dq = dq;
 
-      // observed joint acceleration, diff in velocities over time.
+      // observed joint acceleration, diff in velocities.
       Eigen::Matrix<double, 7, 1> observed_ddq;
-      if (duration.toSec() < 0.00000001) {
-        observed_ddq = ddq_d;
-      } else {
-        observed_ddq = (dq - old_dq) / duration.toSec();
-      }
+      observed_ddq = dq - old_dq;
 
       // error equals current desired acceleration - what we just observed?
       // Eigen::Matrix<double, 7, 1> ddq_error = ddq_d - observed_ddq;
@@ -276,8 +276,10 @@ int main(int argc, char** argv) {
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted);
-        new_package.torques_d = ddq_d;
-        new_package.torques_o = observed_ddq;
+        new_package.torques_d = tau_task;
+        new_package.torques_o = tau_J_d.reshaped();
+        new_package.torques_c = coriolis.reshaped();
+        new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
         transfer_package.Produce(std::move(new_package));
         count = 0;
       }
