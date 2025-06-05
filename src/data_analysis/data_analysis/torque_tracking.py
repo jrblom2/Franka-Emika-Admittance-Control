@@ -13,44 +13,52 @@ class MinimalSubscriberTorque(Node):
         self.subscription = self.create_subscription(Robot, 'robot_data', self.listener_callback, 10)
         self.subscription  # prevent unused variable warning
         self.timer = self.create_timer(1, self.timer_callback)
-        self.joint1d = []
-        self.joint1r = []
-        self.joint1o = []
 
+        self.num_joints = 7
+        self.jointd = [[] for _ in range(self.num_joints)]
+        self.jointr = [[] for _ in range(self.num_joints)]
+        self.jointo = [[] for _ in range(self.num_joints)]
         self.time = []
 
         plt.ion()
-        self.fig, self.axes = plt.subplots(3, 3, figsize=(10, 8))
-        self.fig.suptitle('reported = libFranka desired | observed = reported t - gravity t', fontsize=16)
+        self.fig, self.axes = plt.subplots(3, 3, figsize=(12, 9))
+        self.fig.suptitle('reported = libFranka desired | observed = reported t - gravity t', fontsize=14)
+
         self.lines = []
 
-        # Joint 1
-        ax = self.axes[0, 0]
-        (line1d,) = ax.plot([], [], 'r-', label='1 commanded')
-        (line1r,) = ax.plot([], [], 'g-', label='1 reported')
-        (line1o,) = ax.plot([], [], 'b-', label='1 observed')
-        ax.set_title("Joint 1")
-        ax.set_xlabel("Time (seconds)")
-        ax.set_ylabel("Torque (N/meters)")
-        ax.legend()
-        self.lines.extend([line1d, line1r, line1o])
+        for i in range(self.num_joints):
+            row, col = divmod(i, 3)
+            ax = self.axes[row, col]
+            (lined,) = ax.plot([], [], 'r-', label=f'{i+1} commanded')
+            (liner,) = ax.plot([], [], 'g-', label=f'{i+1} reported')
+            (lineo,) = ax.plot([], [], 'b-', label=f'{i+1} observed')
+            ax.set_title(f"Joint {i+1}")
+            ax.set_xlabel("Time (seconds)")
+            ax.set_ylabel("Torque (N·m)")
+            ax.legend()
+            self.lines.extend([lined, liner, lineo])
 
         self.counter = 0
 
     def listener_callback(self, msg):
-        self.joint1d.append(msg.torques_desired[0])
-        self.joint1r.append(msg.torques_observed[0])
-        self.joint1o.append(msg.torques_gravity[0])
-
+        for i in range(self.num_joints):
+            self.jointd[i].append(msg.torques_desired[i])
+            self.jointr[i].append(msg.torques_observed[i])
+            self.jointo[i].append(msg.torques_gravity[i])
         self.time.append(self.counter / 100)
         self.counter += 1
 
     def timer_callback(self):
-        self.lines[0].set_data(self.time, self.joint1d)
-        self.lines[1].set_data(self.time, self.joint1r)
-        self.lines[2].set_data(self.time, self.joint1o)
-        self.axes[0, 0].relim()
-        self.axes[0, 0].autoscale_view()
+        for i in range(self.num_joints):
+            t = self.time
+            self.lines[i * 3].set_data(t, self.jointd[i])
+            self.lines[i * 3 + 1].set_data(t, self.jointr[i])
+            self.lines[i * 3 + 2].set_data(t, self.jointo[i])
+
+            row, col = divmod(i, 3)
+            ax = self.axes[row, col]
+            ax.relim()
+            ax.autoscale_view()
 
         self.fig.tight_layout()
         self.fig.canvas.draw()
@@ -60,14 +68,8 @@ class MinimalSubscriberTorque(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-
     minimal_subscriber = MinimalSubscriberTorque()
-
     rclpy.spin(minimal_subscriber)
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
     minimal_subscriber.destroy_node()
     rclpy.shutdown()
 
