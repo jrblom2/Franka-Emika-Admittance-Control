@@ -26,11 +26,14 @@ class MinimalSubscriber(Node):
         self.xForce = []
         self.yForce = []
         self.zForce = []
+        self.xVel = []
+        self.yVel = []
+        self.zVel = []
 
         self.time = []
 
         plt.ion()
-        self.fig, self.axes = plt.subplots(2, 3, figsize=(10, 8))
+        self.fig, self.axes = plt.subplots(3, 3, figsize=(12, 9))
         self.lines = []
 
         # X subplot
@@ -95,6 +98,17 @@ class MinimalSubscriber(Node):
         ax.legend()
         self.lines.extend([lineXWrench, lineYWrench, lineZWrench])
 
+        # Velocity
+        ax = self.axes[2, 0]
+        (lineXVel,) = ax.plot([], [], 'r-', label='X')
+        (lineYVel,) = ax.plot([], [], 'g-', label='Y')
+        (lineZVel,) = ax.plot([], [], 'b-', label='Z')
+        ax.set_title("Velocity")
+        ax.set_xlabel("Time (seconds)")
+        ax.set_ylabel("Magnitude (M/S)")
+        ax.legend()
+        self.lines.extend([lineXVel, lineYVel, lineZVel])
+
         self.counter = 0
 
     def listener_callback(self, msg):
@@ -116,6 +130,10 @@ class MinimalSubscriber(Node):
         self.xForce.append(msg.wrench.force.x)
         self.yForce.append(msg.wrench.force.y)
         self.zForce.append(msg.wrench.force.z)
+
+        self.xVel.append(msg.velocity.linear.x)
+        self.yVel.append(msg.velocity.linear.y)
+        self.zVel.append(msg.velocity.linear.z)
 
         self.time.append(self.counter / 100)
         self.counter += 1
@@ -151,6 +169,12 @@ class MinimalSubscriber(Node):
         self.lines[12].set_data(self.time, self.zForce)
         self.axes[1, 2].relim()
         self.axes[1, 2].autoscale_view()
+
+        self.lines[13].set_data(self.time, self.xVel)
+        self.lines[14].set_data(self.time, self.yVel)
+        self.lines[15].set_data(self.time, self.zVel)
+        self.axes[2, 0].relim()
+        self.axes[2, 0].autoscale_view()
 
         self.fig.tight_layout()
         self.fig.canvas.draw()
