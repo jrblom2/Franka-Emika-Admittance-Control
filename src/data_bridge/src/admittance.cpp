@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
   std::string calc_mode{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{20.0};
+  const double translational_stiffness{45.0};
   const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
   virtual_mass = virtual_mass * virtual_mass_scaling;
 
   // phantom force for demo testing
-  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 2.5, 0.0, 0.0, 0.0, 0.0};
+  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -117,10 +117,13 @@ int main(int argc, char** argv) {
     Eigen::Vector3d position_d(initial_transform.translation());
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
 
-    std::vector<Eigen::Vector3d> expected;
+    std::vector<Eigen::Vector3d> expected_pos;
+    std::vector<Eigen::Vector3d> expected_vel;
+    std::vector<Eigen::Vector3d> expected_accel;
     if (calc_mode == "SPRINGDEMO") {
-      std::array<double, 7> springY_goal = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
-      MotionGenerator spring_motion_generator(0.5, springY_goal);
+      std::array<double, 7> springY_goal_far = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
+      std::array<double, 7> springY_goal_near = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
+      MotionGenerator spring_motion_generator(0.5, springY_goal_near);
 
       robot.control(spring_motion_generator);
       std::cout << "Finished moving to spring offset configuration." << std::endl;
@@ -130,13 +133,16 @@ int main(int argc, char** argv) {
       // spring point is about 0.3 in the y direction
       Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
       Eigen::Vector3d position_spring(spring_transform.translation());
-      expected = simulate(
+      trajectory sim_traj = simulate(
         position_spring - position_d,
         translational_stiffness, 
         translational_damping_factor * sqrt(translational_stiffness),
         virtual_mass.diagonal().head<3>(),
         phantom_fext.head(3).reshaped()
       );
+      expected_pos = sim_traj.position;
+      expected_vel = sim_traj.velocity;
+      expected_accel = sim_traj.acceleration;
     }
 
     // set collision behavior
@@ -236,9 +242,11 @@ int main(int argc, char** argv) {
       //   fext = phantom_fext * (jacobian * dq)[1];
       // }
       fext = phantom_fext * (jacobian * dq)[1];
-      std::cout << fext[1] << std::endl;
+      static int fullCount = 0;
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
-
+      if (expected_accel.size() > 0 && fullCount < expected_accel.size()) {
+        ddx_d.head<3>() = expected_accel[fullCount];
+      }
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
 
@@ -274,11 +282,10 @@ int main(int argc, char** argv) {
 
       // publish results
       static int count = 0;
-      static int fullCount = 0;
       count++;
 
-      if (expected.size() > 0 && fullCount < 10000) {
-        predicted = expected[fullCount] + position_d;
+      if (expected_pos.size() > 0 && expected_pos.size()) {
+        predicted = expected_pos[fullCount] + position_d;
       }
       fullCount++;
 

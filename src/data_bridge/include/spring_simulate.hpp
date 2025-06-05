@@ -3,6 +3,11 @@
 #include <vector>
 #include <eigen3/Eigen/Dense>
 
+struct trajectory {
+    std::vector<Eigen::Vector3d> position;
+    std::vector<Eigen::Vector3d> velocity;
+    std::vector<Eigen::Vector3d> acceleration;
+ };
 // Simulates a mass-spring-damper system using RK4 integration.
 // 
 // Parameters:
@@ -12,5 +17,5 @@
 // - m: Mass vector (one for each dimension)
 //
 // Returns:
-// - A vector of position vectors over time
-std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m, const Eigen::Vector3d& f_ext);
+// - A set of vectors containing position, velocity, and acceleration over time
+trajectory simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m, const Eigen::Vector3d& f_ext);

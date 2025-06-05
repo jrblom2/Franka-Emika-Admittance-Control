@@ -1,44 +1,31 @@
 #include "spring_simulate.hpp"
 
-std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m, const Eigen::Vector3d& f_ext) {
-    // Parameters
+trajectory simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m, const Eigen::Vector3d& f_ext) {
     double v0 = 0.0;
-
-    // Time setup
     double dt = 0.001;
-    double T = 10.0;
+    double T = 20.0;
     int n_steps = static_cast<int>(T / dt);
 
-    // Storage for the result
     std::vector<Eigen::Vector3d> positions(n_steps);
+    std::vector<Eigen::Vector3d> velocities(n_steps);
+    std::vector<Eigen::Vector3d> accelerations(n_steps);
 
-    // Initial state
     Eigen::Vector3d x = x0_vec;
     Eigen::Vector3d v = Eigen::Vector3d::Constant(v0);
-    positions[0] = x;
+    Eigen::Vector3d a = Eigen::Vector3d::Zero();
 
-    // end effector speed is just v
+    positions[0] = x;
+    velocities[0] = v;
+    accelerations[0] = a;
+
     auto dx_dt = [](const Eigen::Vector3d& v) {
         return v;
     };
 
-    // end effector acceleration is same equation as in admittance control
     auto dv_dt = [&](const Eigen::Vector3d& x, const Eigen::Vector3d& v) {
-        // Eigen::Vector3d f_adjusted = f_ext;
-    
-        // // Invert external force component-wise where position > 0
-        // for (int i = 0; i < 3; ++i) {
-        //     if (x[i] > 0) {
-        //         f_adjusted[i] *= -1.0;
-        //     }
-        // }
-    
-        // Eigen::Vector3d dv = (-c * v - k * x + f_adjusted).array() / m.array();
-        Eigen::Vector3d dv = (-c * v - k * x).array() / m.array();
-        return dv;
+        return (-c * v - k * x + f_ext).array() / m.array();
     };
 
-    // RK4 Integration
     for (int i = 1; i < n_steps; ++i) {
         Eigen::Vector3d k1_x = dx_dt(v);
         Eigen::Vector3d k1_v = dv_dt(x, v);
@@ -54,9 +41,12 @@ std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec, double k, d
 
         x += (dt / 6.0) * (k1_x + 2 * k2_x + 2 * k3_x + k4_x);
         v += (dt / 6.0) * (k1_v + 2 * k2_v + 2 * k3_v + k4_v);
+        a = dv_dt(x, v);  // compute acceleration from latest x and v
 
         positions[i] = x;
+        velocities[i] = v;
+        accelerations[i] = a;
     }
 
-    return positions;
+    return {positions, velocities, accelerations};
 }
