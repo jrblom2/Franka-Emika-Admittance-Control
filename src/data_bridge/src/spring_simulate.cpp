@@ -17,13 +17,23 @@ std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec, double k, d
     Eigen::Vector3d v = Eigen::Vector3d::Constant(v0);
     positions[0] = x;
 
-    // Derivative functions
+    // end effector speed is just v
     auto dx_dt = [](const Eigen::Vector3d& v) {
         return v;
     };
 
+    // end effector acceleration is same equation as in admittance control
     auto dv_dt = [&](const Eigen::Vector3d& x, const Eigen::Vector3d& v) {
-        Eigen::Vector3d dv = (f_ext + (-c * v) - (k * x)).array() / m.array();
+        Eigen::Vector3d f_adjusted = f_ext;
+    
+        // Invert external force component-wise where position > 0
+        for (int i = 0; i < 3; ++i) {
+            if (x[i] > 0) {
+                f_adjusted[i] *= -1.0;
+            }
+        }
+    
+        Eigen::Vector3d dv = (-c * v - k * x + f_adjusted).array() / m.array();
         return dv;
     };
 

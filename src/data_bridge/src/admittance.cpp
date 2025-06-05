@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
   std::string calc_mode{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{10.0};
+  const double translational_stiffness{20.0};
   const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
@@ -66,6 +66,9 @@ int main(int argc, char** argv) {
   virtual_mass(4,4) = 1;
   virtual_mass(5,5) = 1;
   virtual_mass = virtual_mass * virtual_mass_scaling;
+
+  // phantom force for demo testing
+  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, -0.0, 0.0, 0.0, 0.0, 0.0};
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -131,7 +134,8 @@ int main(int argc, char** argv) {
         position_spring - position_d,
         translational_stiffness, 
         translational_damping_factor * sqrt(translational_stiffness),
-        virtual_mass.diagonal().head<3>()
+        virtual_mass.diagonal().head<3>(),
+        phantom_fext.head(3).reshaped()
       );
     }
 
@@ -224,7 +228,13 @@ int main(int argc, char** argv) {
 
       // MR 11.66, using mass matrix of robot as virtual mass. Have not found a better alternative after testing.
       Eigen::VectorXd ddx_d(6);
-      fext.setZero();
+
+      // overwrite force reading from sensor with static force in spring direction
+      if (error[1] < 0) {
+        fext = -phantom_fext;
+      } else {
+        fext = phantom_fext;
+      }
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
@@ -276,6 +286,7 @@ int main(int argc, char** argv) {
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted);
+        new_package.velocity = (jacobian * dq).head(3).reshaped();
         new_package.torques_d = tau_d;
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();

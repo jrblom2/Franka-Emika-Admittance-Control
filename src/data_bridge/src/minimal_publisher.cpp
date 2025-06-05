@@ -29,7 +29,11 @@ MinimalPublisher::MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
       message.position_d.position.x = data.translation_d[0];
       message.position_d.position.y = data.translation_d[1];
       message.position_d.position.z = data.translation_d[2];
-      
+
+      message.velocity.linear.x = data.velocity[0];
+      message.velocity.linear.y = data.velocity[1];
+      message.velocity.linear.z = data.velocity[2];
+
       message.torques_desired.resize(7);
       for (size_t i = 0; i < 7; ++i) {
           message.torques_desired[i] = data.torques_d(i);
