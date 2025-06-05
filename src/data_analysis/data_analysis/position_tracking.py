@@ -29,6 +29,9 @@ class MinimalSubscriber(Node):
         self.xVel = []
         self.yVel = []
         self.zVel = []
+        self.xForceActual = []
+        self.yForceActual = []
+        self.zForceActual = []
 
         self.time = []
 
@@ -109,6 +112,17 @@ class MinimalSubscriber(Node):
         ax.legend()
         self.lines.extend([lineXVel, lineYVel, lineZVel])
 
+        # Commanded Wrench on EE
+        ax = self.axes[2, 1]
+        (lineXWrenchA,) = ax.plot([], [], 'r-', label='X')
+        (lineYWrenchA,) = ax.plot([], [], 'g-', label='Y')
+        (lineZWrenchA,) = ax.plot([], [], 'b-', label='Z')
+        ax.set_title("External Wrench")
+        ax.set_xlabel("Time (seconds)")
+        ax.set_ylabel("Magnitude (N)")
+        ax.legend()
+        self.lines.extend([lineXWrenchA, lineYWrenchA, lineZWrenchA])
+
         self.counter = 0
 
     def listener_callback(self, msg):
@@ -130,6 +144,10 @@ class MinimalSubscriber(Node):
         self.xForce.append(msg.wrench.force.x)
         self.yForce.append(msg.wrench.force.y)
         self.zForce.append(msg.wrench.force.z)
+
+        self.xForceActual.append(msg.actual_wrench.force.x)
+        self.yForceActual.append(msg.actual_wrench.force.y)
+        self.zForceActual.append(msg.actual_wrench.force.z)
 
         self.xVel.append(msg.velocity.linear.x)
         self.yVel.append(msg.velocity.linear.y)
@@ -175,6 +193,12 @@ class MinimalSubscriber(Node):
         self.lines[15].set_data(self.time, self.zVel)
         self.axes[2, 0].relim()
         self.axes[2, 0].autoscale_view()
+
+        self.lines[16].set_data(self.time, self.xForceActual)
+        self.lines[17].set_data(self.time, self.yForceActual)
+        self.lines[18].set_data(self.time, self.zForceActual)
+        self.axes[2, 1].relim()
+        self.axes[2, 1].autoscale_view()
 
         self.fig.tight_layout()
         self.fig.canvas.draw()

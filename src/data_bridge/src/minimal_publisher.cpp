@@ -17,6 +17,13 @@ MinimalPublisher::MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
       message.wrench.torque.y = data.desired_wrench(4, 0);
       message.wrench.torque.z = data.desired_wrench(5, 0);
 
+      message.actual_wrench.force.x = data.actual_wrench(0, 0);
+      message.actual_wrench.force.y = data.actual_wrench(1, 0);
+      message.actual_wrench.force.z = data.actual_wrench(2, 0);
+      message.actual_wrench.torque.x = data.actual_wrench(3, 0);
+      message.actual_wrench.torque.y = data.actual_wrench(4, 0);
+      message.actual_wrench.torque.z = data.actual_wrench(5, 0);
+
       message.position.position.x = data.translation[0];
       message.position.position.y = data.translation[1];
       message.position.position.z = data.translation[2];

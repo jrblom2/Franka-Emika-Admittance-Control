@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
   virtual_mass = virtual_mass * virtual_mass_scaling;
 
   // phantom force for demo testing
-  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, -0.0, 0.0, 0.0, 0.0, 0.0};
+  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 2.5, 0.0, 0.0, 0.0, 0.0};
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -230,11 +230,13 @@ int main(int argc, char** argv) {
       Eigen::VectorXd ddx_d(6);
 
       // overwrite force reading from sensor with static force in spring direction
-      if (error[1] < 0) {
-        fext = -phantom_fext;
-      } else {
-        fext = phantom_fext;
-      }
+      // if ((jacobian * dq)[1] < 0) {
+      //   fext = phantom_fext * (jacobian * dq)[1];
+      // } else {
+      //   fext = phantom_fext * (jacobian * dq)[1];
+      // }
+      fext = phantom_fext * (jacobian * dq)[1];
+      std::cout << fext[1] << std::endl;
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
@@ -283,6 +285,7 @@ int main(int argc, char** argv) {
       if (count == 10) {
         queue_package new_package;
         new_package.desired_wrench = Eigen::Matrix<double, 6, 1>(ddx_d);
+        new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted);
