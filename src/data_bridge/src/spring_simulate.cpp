@@ -1,6 +1,6 @@
 #include "spring_simulate.hpp"
 
-std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m) {
+std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m, const Eigen::Vector3d& f_ext) {
     // Parameters
     double v0 = 0.0;
 
@@ -23,7 +23,7 @@ std::vector<Eigen::Vector3d> simulate(const Eigen::Vector3d& x0_vec, double k, d
     };
 
     auto dv_dt = [&](const Eigen::Vector3d& x, const Eigen::Vector3d& v) {
-        Eigen::Vector3d dv = (-c * v - k * x).array() / m.array();
+        Eigen::Vector3d dv = (f_ext + (-c * v) - (k * x)).array() / m.array();
         return dv;
     };
 
