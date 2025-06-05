@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <node pkg="data_analysis" exec="position_tracking" name="position" namespace="position" />
+  <node pkg="data_analysis" exec="torque_tracking" name="torque" namespace="torque" />
+</launch>
