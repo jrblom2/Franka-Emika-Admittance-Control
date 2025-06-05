@@ -326,6 +326,10 @@ int main(int argc, char** argv) {
   } catch (const franka::Exception& ex) {
     // print exception
     std::cout << ex.what() << std::endl;
+  } catch (const std::exception& ex) {
+    std::cerr << ex.what() << std::endl;
+  } catch (...) {
+      std::cerr << "Unknown exception caught." << std::endl;
   }
 
   return 0;
