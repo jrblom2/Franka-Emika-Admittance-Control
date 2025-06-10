@@ -28,7 +28,7 @@ Run the executables with
 
 Available executables are as follows and all require the robot IP:
 
-`admittance`: the primary point of the project. Sets up sensor and uses data to perform admittance control while keeping the EE locked to XYZ only. So no roll, pitch, or yaw.
+`admittance`: the primary point of the project. Sets up sensor and uses data to perform admittance control while keeping the EE locked to XYZ only. So no roll, pitch, or yaw. Additionally takes an option for what mode to run: TRACK is the defualt behavior while SPRING and SPRINGDEMO can be used for testing.
 
 `white_light`: impedance control example
 
