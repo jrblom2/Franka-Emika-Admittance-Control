@@ -6,6 +6,7 @@
 #include <functional>
 #include <iostream>
 #include <string>
+#include <chrono>
 
 #include <eigen3/Eigen/Dense>
 
@@ -42,7 +43,7 @@ int main(int argc, char** argv) {
   std::string calc_mode{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{45.0};
+  const double translational_stiffness{15.0};
   const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
@@ -68,7 +69,7 @@ int main(int argc, char** argv) {
   virtual_mass = virtual_mass * virtual_mass_scaling;
 
   // phantom force for demo testing
-  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -123,7 +124,7 @@ int main(int argc, char** argv) {
     if (calc_mode == "SPRINGDEMO") {
       std::array<double, 7> springY_goal_far = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
       std::array<double, 7> springY_goal_near = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
-      MotionGenerator spring_motion_generator(0.5, springY_goal_near);
+      MotionGenerator spring_motion_generator(0.5, springY_goal_far);
 
       robot.control(spring_motion_generator);
       std::cout << "Finished moving to spring offset configuration." << std::endl;
@@ -138,7 +139,7 @@ int main(int argc, char** argv) {
         translational_stiffness, 
         translational_damping_factor * sqrt(translational_stiffness),
         virtual_mass.diagonal().head<3>(),
-        phantom_fext.head(3).reshaped()
+        Eigen::Vector3d::Zero()
       );
       expected_pos = sim_traj.position;
       expected_vel = sim_traj.velocity;
@@ -150,7 +151,8 @@ int main(int argc, char** argv) {
                                {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
                                {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
                                {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0}});
-
+    
+    auto start = std::chrono::system_clock::now();
     // define callback for the torque control loop
     std::function<franka::Torques(const franka::RobotState&, franka::Duration)>
         impedance_control_callback = [&](const franka::RobotState& robot_state,
@@ -235,18 +237,20 @@ int main(int argc, char** argv) {
       // MR 11.66, using mass matrix of robot as virtual mass. Have not found a better alternative after testing.
       Eigen::VectorXd ddx_d(6);
 
-      // overwrite force reading from sensor with static force in spring direction
-      // if ((jacobian * dq)[1] < 0) {
-      //   fext = phantom_fext * (jacobian * dq)[1];
-      // } else {
-      //   fext = phantom_fext * (jacobian * dq)[1];
-      // }
       fext = phantom_fext * (jacobian * dq)[1];
       static int fullCount = 0;
+
+      //pull for two sec, go to 10 N over two sec
+      // if (fullCount < 2000) {
+      //   fext[1] = fullCount / 200.0;
+      // } 
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
-      if (expected_accel.size() > 0 && fullCount < expected_accel.size()) {
+
+      // feed forward control instead for demo
+      if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
         ddx_d.head<3>() = expected_accel[fullCount];
       }
+      
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
 
@@ -284,12 +288,12 @@ int main(int argc, char** argv) {
       static int count = 0;
       count++;
 
-      if (expected_pos.size() > 0 && expected_pos.size()) {
+      if (expected_pos.size() > 0 && fullCount < (int)expected_pos.size()) {
         predicted = expected_pos[fullCount] + position_d;
       }
       fullCount++;
 
-      if (count == 10) {
+      if (count == 20) {
         queue_package new_package;
         new_package.desired_wrench = Eigen::Matrix<double, 6, 1>(ddx_d);
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);
@@ -312,6 +316,8 @@ int main(int argc, char** argv) {
         predicted = position + ((jacobian * dq).head(3) * duration.toSec()) + (0.5*ddx_d.head(3)*pow(duration.toSec(), 2.0));
       }
 
+      auto end = std::chrono::system_clock::now();
+      std::chrono::duration<double> elapsed_seconds = end-start;
       return tau_d_array;
     };
 

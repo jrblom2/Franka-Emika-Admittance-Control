@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-import numpy as np
+import time
 
 from data_interfaces.msg import Robot
 import matplotlib.pyplot as plt
@@ -19,6 +19,7 @@ class MinimalSubscriberTorque(Node):
         self.jointr = [[] for _ in range(self.num_joints)]
         self.jointo = [[] for _ in range(self.num_joints)]
         self.time = []
+        self.start = None
 
         plt.ion()
         self.fig, self.axes = plt.subplots(3, 3, figsize=(12, 9))
@@ -41,11 +42,14 @@ class MinimalSubscriberTorque(Node):
         self.counter = 0
 
     def listener_callback(self, msg):
+        if self.start is None:
+            self.start = time.time()
+
         for i in range(self.num_joints):
             self.jointd[i].append(msg.torques_desired[i])
             self.jointr[i].append(msg.torques_observed[i])
             self.jointo[i].append(msg.torques_gravity[i])
-        self.time.append(self.counter / 100)
+        self.time.append(time.time() - self.start)
         self.counter += 1
 
     def timer_callback(self):

@@ -4,6 +4,7 @@ import numpy as np
 
 from data_interfaces.msg import Robot
 import matplotlib.pyplot as plt
+import time
 
 
 class MinimalSubscriber(Node):
@@ -124,8 +125,11 @@ class MinimalSubscriber(Node):
         self.lines.extend([lineXWrenchA, lineYWrenchA, lineZWrenchA])
 
         self.counter = 0
+        self.start = None
 
     def listener_callback(self, msg):
+        if self.start is None:
+            self.start = time.time()
         self.xPosition.append(msg.position.position.x)
         self.yPosition.append(msg.position.position.y)
         self.zPosition.append(msg.position.position.z)
@@ -153,7 +157,8 @@ class MinimalSubscriber(Node):
         self.yVel.append(msg.velocity.linear.y)
         self.zVel.append(msg.velocity.linear.z)
 
-        self.time.append(self.counter / 100)
+        print(time.time() - self.start)
+        self.time.append(time.time() - self.start)
         self.counter += 1
 
     def timer_callback(self):

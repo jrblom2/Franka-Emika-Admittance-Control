@@ -65,5 +65,5 @@ MinimalPublisher::MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
     }
   };
 
-  timer_ = this->create_wall_timer(std::chrono::milliseconds(10), timer_callback);
+  timer_ = this->create_wall_timer(std::chrono::milliseconds(20), timer_callback);
 }
