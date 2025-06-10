@@ -1,4 +1,4 @@
-# Franka-Emika_Admittance-Control
+# Franka-Emika-Admittance-Control
 This repository contains code to perform basic admitance control using a Franka Emika reasearch arm. It is structured like a ROS2 project and package, however ROS2 is not used directly for the control.
 
 ROS2 is used for the transfer of data out of the libFranka control loop to other devices on the network.
