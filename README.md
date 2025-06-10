@@ -18,7 +18,7 @@ https://www.ati-ia.com/products/ft/ft_models.aspx?id=Axia80-M8
 
 ## Running
 
-Once the project is build, source it with
+Once the project is built, source it with
 
  ```source install/setup.bash```
 
@@ -33,6 +33,28 @@ Available executables are as follows and all require the robot IP:
 `white_light`: impedance control example
 
 `cartesian_impedance_control`: impedance control example with pose tracking using spring-damper controls.
+
+## ROS2 Integration
+
+The admittance executable currently publishes a large selection of data over the `/robot_data` topic to allow other systems to perform analysis. The data_analysis package in this project is a simple plotting package that can be used for this analysis so long as it is run on any computer on the robots network.
+
+To pull up the live plots of the robots state and the control loop torques run:
+
+```ros2 launch data_analysis report.xml```
+
+after building and sourcing the project on a different machine from the robot.
+
+### Topics
+
+`/robot_data:data_interfaces/msg/Robot`
+
+### Packages
+
+`data_bridge`: contains the admittance controller as well as some other examples for controlling the Franka. Publishes to `/robot_data`
+
+`data_analysis`: contains several different nodes that listen to `/robot_data` and plot data live. Launch file runs all of them.
+
+`data_interfaces`: contains `Robot` msg type used by the `/robot_data` topic. This type is a huge grab bag for all of the data we desire from the robot.
 
 ## Credit
 
