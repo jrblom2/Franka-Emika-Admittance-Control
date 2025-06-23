@@ -152,7 +152,6 @@ int main(int argc, char** argv) {
                                {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
                                {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0}});
     
-    auto start = std::chrono::system_clock::now();
     // define callback for the torque control loop
     std::function<franka::Torques(const franka::RobotState&, franka::Duration)>
         impedance_control_callback = [&](const franka::RobotState& robot_state,
@@ -208,8 +207,8 @@ int main(int argc, char** argv) {
       
       // mass matrix in cartesian space, Alpha. Use this in place of any operation using M but needs 6x6
       // diagnol of alpha is about 11,4,5,1,1,1
-      Eigen::Matrix<double, 6, 6> alpha;
-      alpha << (jacobian * mass.inverse() * jacobian.transpose()).inverse();
+      // Eigen::Matrix<double, 6, 6> alpha;
+      // alpha << (jacobian * mass.inverse() * jacobian.transpose()).inverse();
 
       // compute error to desired equilibrium pose
       // position error
@@ -259,23 +258,6 @@ int main(int argc, char** argv) {
       ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
       // MR 8.1
       tau_task << mass * ddq_d;
-      
-      // PI control to account for sticky slow movements
-      // double P_gain = 0.07;
-      static Eigen::Matrix<double, 7, 1> old_dq = dq;
-
-      // observed joint acceleration, diff in velocities.
-      Eigen::Matrix<double, 7, 1> observed_ddq;
-      observed_ddq = dq - old_dq;
-
-      // error equals current desired acceleration - what we just observed?
-      // Eigen::Matrix<double, 7, 1> ddq_error = ddq_d - observed_ddq;
-      // Eigen::Matrix<double, 7, 1> PI_ddq = P_gain * ddq_error;
-      // tau_error << mass * PI_ddq;
-      // old_dq = dq;
-
-      // std::cout << "tau task: " << tau_task << std::endl;
-      // std::cout << "tau_error: " << tau_error << std::endl;
 
       // add all control elements together
       tau_d << tau_task + coriolis;
@@ -309,15 +291,6 @@ int main(int argc, char** argv) {
         count = 0;
       }
 
-      //predicted position based on acceleration control. Update after message publish so we pair last rounds predicted with the actual change.
-      if (duration.toSec() < 0.00000001) {
-        predicted = position;
-      } else {
-        predicted = position + ((jacobian * dq).head(3) * duration.toSec()) + (0.5*ddx_d.head(3)*pow(duration.toSec(), 2.0));
-      }
-
-      auto end = std::chrono::system_clock::now();
-      std::chrono::duration<double> elapsed_seconds = end-start;
       return tau_d_array;
     };
 
