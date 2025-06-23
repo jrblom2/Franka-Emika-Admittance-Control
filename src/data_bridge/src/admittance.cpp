@@ -118,13 +118,14 @@ int main(int argc, char** argv) {
     Eigen::Vector3d position_d(initial_transform.translation());
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
 
+    // if this is a demo, move to offset position and simulate expected movement
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
     if (calc_mode == "SPRINGDEMO") {
       std::array<double, 7> springY_goal_far = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
       std::array<double, 7> springY_goal_near = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
-      MotionGenerator spring_motion_generator(0.5, springY_goal_far);
+      MotionGenerator spring_motion_generator(0.5, springY_goal_near);
 
       robot.control(spring_motion_generator);
       std::cout << "Finished moving to spring offset configuration." << std::endl;
@@ -248,6 +249,7 @@ int main(int argc, char** argv) {
       // feed forward control instead for demo
       if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
         ddx_d.head<3>() = expected_accel[fullCount];
+        ddx_d.tail(3).setZero();
       }
       
       // compute control
