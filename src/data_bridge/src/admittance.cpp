@@ -279,7 +279,7 @@ int main(int argc, char** argv) {
 
       if (count == 20) {
         queue_package new_package;
-        new_package.desired_wrench = Eigen::Matrix<double, 6, 1>(ddx_d);
+        new_package.desired_accel = Eigen::Matrix<double, 6, 1>(ddx_d);
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);

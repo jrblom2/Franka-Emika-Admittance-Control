@@ -12,7 +12,7 @@
 #include <eigen3/Eigen/Dense>
 
 struct queue_package {
-	Eigen::Matrix<double, 6, 1> desired_wrench;
+	Eigen::Matrix<double, 6, 1> desired_accel;
 	Eigen::Matrix<double, 6, 1> actual_wrench;
 	Eigen::Matrix<double, 3, 1> orientation_error;
 	Eigen::Vector3d translation;

@@ -10,12 +10,12 @@ MinimalPublisher::MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
     auto message = data_interfaces::msg::Robot();
 
     while (squeue_transfer_.Consume(data)) {
-      message.wrench.force.x = data.desired_wrench(0, 0);
-      message.wrench.force.y = data.desired_wrench(1, 0);
-      message.wrench.force.z = data.desired_wrench(2, 0);
-      message.wrench.torque.x = data.desired_wrench(3, 0);
-      message.wrench.torque.y = data.desired_wrench(4, 0);
-      message.wrench.torque.z = data.desired_wrench(5, 0);
+      message.accel.linear.x = data.desired_accel(0, 0);
+      message.accel.linear.y = data.desired_accel(1, 0);
+      message.accel.linear.z = data.desired_accel(2, 0);
+      message.accel.angular.x = data.desired_accel(3, 0);
+      message.accel.angular.y = data.desired_accel(4, 0);
+      message.accel.angular.z = data.desired_accel(5, 0);
 
       message.actual_wrench.force.x = data.actual_wrench(0, 0);
       message.actual_wrench.force.y = data.actual_wrench(1, 0);

@@ -24,9 +24,9 @@ class MinimalSubscriber(Node):
         self.roll = []
         self.pitch = []
         self.yaw = []
-        self.xForce = []
-        self.yForce = []
-        self.zForce = []
+        self.xAccel = []
+        self.yAccel = []
+        self.zAccel = []
         self.xVel = []
         self.yVel = []
         self.zVel = []
@@ -91,16 +91,16 @@ class MinimalSubscriber(Node):
         ax.legend()
         self.lines.extend([lineErrorMag])
 
-        # Commanded Wrench on EE
+        # Commanded Acceleration on EE
         ax = self.axes[1, 2]
-        (lineXWrench,) = ax.plot([], [], 'r-', label='X')
-        (lineYWrench,) = ax.plot([], [], 'g-', label='Y')
-        (lineZWrench,) = ax.plot([], [], 'b-', label='Z')
+        (lineXAccel,) = ax.plot([], [], 'r-', label='X')
+        (lineYAccel,) = ax.plot([], [], 'g-', label='Y')
+        (lineZAccel,) = ax.plot([], [], 'b-', label='Z')
         ax.set_title("Commanded Acceleration")
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Magnitude (M/S^2)")
         ax.legend()
-        self.lines.extend([lineXWrench, lineYWrench, lineZWrench])
+        self.lines.extend([lineXAccel, lineYAccel, lineZAccel])
 
         # Velocity
         ax = self.axes[2, 0]
@@ -113,16 +113,16 @@ class MinimalSubscriber(Node):
         ax.legend()
         self.lines.extend([lineXVel, lineYVel, lineZVel])
 
-        # Commanded Wrench on EE
+        # External Wrench on EE
         ax = self.axes[2, 1]
-        (lineXWrenchA,) = ax.plot([], [], 'r-', label='X')
-        (lineYWrenchA,) = ax.plot([], [], 'g-', label='Y')
-        (lineZWrenchA,) = ax.plot([], [], 'b-', label='Z')
+        (lineXWrench,) = ax.plot([], [], 'r-', label='X')
+        (lineYWrench,) = ax.plot([], [], 'g-', label='Y')
+        (lineZWrench,) = ax.plot([], [], 'b-', label='Z')
         ax.set_title("External Wrench")
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Magnitude (N)")
         ax.legend()
-        self.lines.extend([lineXWrenchA, lineYWrenchA, lineZWrenchA])
+        self.lines.extend([lineXWrench, lineYWrench, lineZWrench])
 
         self.counter = 0
         self.start = None
@@ -145,9 +145,9 @@ class MinimalSubscriber(Node):
         error = np.linalg.norm(actual - desired)
         self.positionErrorMag.append(error)
 
-        self.xForce.append(msg.wrench.force.x)
-        self.yForce.append(msg.wrench.force.y)
-        self.zForce.append(msg.wrench.force.z)
+        self.xAccel.append(msg.accel.linear.x)
+        self.yAccel.append(msg.accel.linear.y)
+        self.zAccel.append(msg.accel.linear.z)
 
         self.xForceActual.append(msg.actual_wrench.force.x)
         self.yForceActual.append(msg.actual_wrench.force.y)
@@ -187,9 +187,9 @@ class MinimalSubscriber(Node):
         self.axes[1, 1].relim()
         self.axes[1, 1].autoscale_view()
 
-        self.lines[10].set_data(self.time, self.xForce)
-        self.lines[11].set_data(self.time, self.yForce)
-        self.lines[12].set_data(self.time, self.zForce)
+        self.lines[10].set_data(self.time, self.xAccel)
+        self.lines[11].set_data(self.time, self.yAccel)
+        self.lines[12].set_data(self.time, self.zAccel)
         self.axes[1, 2].relim()
         self.axes[1, 2].autoscale_view()
 
