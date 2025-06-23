@@ -233,7 +233,7 @@ int main(int argc, char** argv) {
       // Transform to base frame
       error.tail(3) << -transform.rotation() * error.tail(3);
 
-      // MR 11.66, using mass matrix of robot as virtual mass. Have not found a better alternative after testing.
+      // MR 11.66
       Eigen::VectorXd ddx_d(6);
 
       fext = phantom_fext * (jacobian * dq)[1];
