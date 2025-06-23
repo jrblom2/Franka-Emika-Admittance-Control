@@ -1,7 +1,6 @@
 #include "data_dumper.hpp"
-#include "SafeQueue.hpp"
 
-void dump(std::vector<queue_package> data) {
+void robot_dump(const std::vector<queue_package> & data) {
     //setup output directory
     time_t now = time(NULL);
     struct tm *timenow = localtime(&now);

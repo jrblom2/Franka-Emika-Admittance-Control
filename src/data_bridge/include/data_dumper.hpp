@@ -6,4 +6,6 @@
 #include <vector>
 #include <eigen3/Eigen/Dense>
 
-void dump(std::vector<queue_package>);
+#include "SafeQueue.hpp"
+
+void robot_dump(const std::vector<queue_package>&);

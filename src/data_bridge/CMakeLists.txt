@@ -20,6 +20,7 @@ add_library(utilities STATIC
   src/examples_common.cpp
   src/spring_simulate.cpp
   src/minimal_publisher.cpp
+  src/data_dumper.cpp
 )
 target_include_directories(utilities PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

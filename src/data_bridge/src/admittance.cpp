@@ -23,12 +23,12 @@
 #include "minimal_publisher.hpp"
 #include "data_dumper.hpp"
 
-volatile bool program_should_terminate = false; // Global flag
+volatile bool robot_stop = false; // Global flag
 
 void signal_handler(int signal) {
     if (signal == SIGINT) {
         std::cerr << "\nCtrl+C detected. Initiating graceful shutdown..." << std::endl;
-        program_should_terminate = true;
+        robot_stop = true;
     }
 }
 
@@ -44,12 +44,12 @@ int main(int argc, char** argv) {
   std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed
   if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  "<control-calc>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  " <control-calc>" << std::endl;
     return -1;
   }
 
   // RCL Init
-  rclcpp::init(argc, argv);
+  // rclcpp::init(argc, argv);
 
   std::string calc_mode{argv[2]};
 
@@ -275,14 +275,16 @@ int main(int argc, char** argv) {
 
       // add all control elements together
       tau_d << tau_task + coriolis;
-      std::array<double, 7> tau_d_array{};
-      Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 
-      static Eigen::Vector3d predicted = position;
+      // output format
+      std::array<double, 7> tau_d_array;
+      Eigen::Map<Eigen::Matrix<double, 7, 1>>(tau_d_array.data()) = tau_d;
+      franka::Torques torques = tau_d_array;
 
       // publish results
       static int count = 0;
       count++;
+      static Eigen::Vector3d predicted = position;
 
       if (expected_pos.size() > 0 && fullCount < (int)expected_pos.size()) {
         predicted = expected_pos[fullCount] + position_d;
@@ -306,7 +308,11 @@ int main(int argc, char** argv) {
         count = 0;
       }
 
-      return tau_d_array;
+      // if ctrl-c is pressed, robot should stop
+      if (robot_stop) {
+        return franka::MotionFinished(torques);
+      }
+      return torques;
     };
 
     // start real-time control loop
@@ -334,8 +340,8 @@ int main(int argc, char** argv) {
 
   // rclcpp::shutdown();
   // spin_thread.join();
-  
-  dump(dump_vector);
+
+  robot_dump(dump_vector);
 
   return 0;
 }
