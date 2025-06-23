@@ -37,4 +37,4 @@ log/
 .vscode
 
 # data files
-data*/
+data/

@@ -1,9 +1,16 @@
 import os
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# Argument parsing
+parser = argparse.ArgumentParser(description='Plot data from CSV files.')
+parser.add_argument('data_dir', help='Path to the data directory (containing CSVs)')
+args = parser.parse_args()
+
+data_dir = args.data_dir
+
 # Constants
-data_dir = 'data_2025-06-23_11-59-46/'
 output_dir = os.path.join(data_dir, 'plots')
 os.makedirs(output_dir, exist_ok=True)
 sampling_rate = 50
