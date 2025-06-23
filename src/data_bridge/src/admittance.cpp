@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <csignal>
 
 #include <eigen3/Eigen/Dense>
 
@@ -20,6 +21,16 @@
 #include "SafeQueue.hpp"
 #include "spring_simulate.hpp"
 #include "minimal_publisher.hpp"
+#include "data_dumper.hpp"
+
+volatile bool program_should_terminate = false; // Global flag
+
+void signal_handler(int signal) {
+    if (signal == SIGINT) {
+        std::cerr << "\nCtrl+C detected. Initiating graceful shutdown..." << std::endl;
+        program_should_terminate = true;
+    }
+}
 
 /**
  * @example cartesian_impedance_control.cpp
@@ -29,8 +40,8 @@
  *
  * @warning collision thresholds are set to high values. Make sure you have the user stop at hand!
  */
-
 int main(int argc, char** argv) {
+  std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed
   if (argc != 3) {
     std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  "<control-calc>" << std::endl;
@@ -95,6 +106,7 @@ int main(int argc, char** argv) {
 
   // thread-safe queue to transfer robot data to ROS
   SafeQueue<queue_package> transfer_package;
+  std::vector<queue_package> dump_vector;
 
   try {
     // connect to robot
@@ -289,7 +301,8 @@ int main(int argc, char** argv) {
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
-        transfer_package.Produce(std::move(new_package));
+        // transfer_package.Produce(std::move(new_package));
+        dump_vector.push_back(std::move(new_package));
         count = 0;
       }
 
@@ -304,16 +317,12 @@ int main(int argc, char** argv) {
     std::cin.ignore();
 
     // data bridge through ROS2 setup
-    auto node = std::make_shared<MinimalPublisher>(transfer_package);
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(node);
-    std::thread spin_thread([&executor](){ executor.spin(); });
+    // auto node = std::make_shared<MinimalPublisher>(transfer_package);
+    // rclcpp::executors::MultiThreadedExecutor executor;
+    // executor.add_node(node);
+    // std::thread spin_thread([&executor](){ executor.spin(); });
 
     robot.control(impedance_control_callback);
-
-    rclcpp::shutdown();
-    spin_thread.join();
-
   } catch (const franka::Exception& ex) {
     // print exception
     std::cout << ex.what() << std::endl;
@@ -322,6 +331,11 @@ int main(int argc, char** argv) {
   } catch (...) {
       std::cerr << "Unknown exception caught." << std::endl;
   }
+
+  // rclcpp::shutdown();
+  // spin_thread.join();
+  
+  dump(dump_vector);
 
   return 0;
 }
