@@ -36,6 +36,7 @@ set(EXAMPLES
   cartesian_impedance_control
   white_light
   admittance
+  spring_demo
 )
 
 foreach(example ${EXAMPLES})

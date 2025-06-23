@@ -9,7 +9,7 @@
 #include <franka/exception.h>
 #include <franka/robot.h>
 
-void setDefaultBehavior(franka::Robot& robot) {
+void setDefaultBehavior(franka::Robot& robot, double load) {
   //can change if robot is crashing too often
   robot.setCollisionBehavior(
       {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0}}, {{20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0}},
@@ -22,12 +22,12 @@ void setDefaultBehavior(franka::Robot& robot) {
   robot.setCartesianImpedance({{3000, 3000, 3000, 300, 300, 300}});
 
   //configure load of sensor/cable on EE
-  double ft_sensor_mass = 0.80; // kg
-  const std::array<double,3> F_x_C_Load = {0.0,0.0,0.0}; //Fxcload in m
-  const std::array<double,9> load_inertia = { 1.0,0.0,0.0,
-                                              0.0,1.0,0.0,
-                                              0.0,0.0,1.0 }; //inertia matrix of load [kg x m^2] in column major order
-  robot.setLoad(ft_sensor_mass, F_x_C_Load, load_inertia);
+  // double ft_sensor_mass = load; // kg
+  // const std::array<double,3> F_x_C_Load = {0.0,0.0,0.0}; //Fxcload in m
+  // const std::array<double,9> load_inertia = { 1.0,0.0,0.0,
+  //                                             0.0,1.0,0.0,
+  //                                             0.0,0.0,1.0 }; //inertia matrix of load [kg x m^2] in column major order
+  // robot.setLoad(ft_sensor_mass, F_x_C_Load, load_inertia);
 }
 
 MotionGenerator::MotionGenerator(double speed_factor, const std::array<double, 7> q_goal)

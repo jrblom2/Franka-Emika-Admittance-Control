@@ -6,7 +6,7 @@ void robot_dump(const std::vector<queue_package> & data) {
     struct tm *timenow = localtime(&now);
     char buffer[80];
     strftime(buffer, sizeof(buffer), "%Y-%m-%d_%H-%M-%S", timenow);
-    std::string output = "data_" + std::string(buffer);
+    std::string output = "data/data_" + std::string(buffer);
     std::filesystem::path output_dir = output;
     std::filesystem::create_directory(output_dir);
 

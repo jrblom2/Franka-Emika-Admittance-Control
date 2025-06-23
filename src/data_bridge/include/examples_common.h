@@ -21,7 +21,7 @@
  *
  * @param[in] robot Robot instance to set behavior on.
  */
-void setDefaultBehavior(franka::Robot& robot);
+void setDefaultBehavior(franka::Robot& robot, double load = 0.00);
 
 /**
  * An example showing how to generate a joint pose motion to a goal position. Adapted from:

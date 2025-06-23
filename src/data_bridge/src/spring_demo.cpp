@@ -44,14 +44,14 @@ int main(int argc, char** argv) {
   std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed
   if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  " <control-calc>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  " <distance>" << std::endl;
     return -1;
   }
 
   // RCL Init
   // rclcpp::init(argc, argv);
 
-  std::string calc_mode{argv[2]};
+  std::string start_distance{argv[2]};
 
   // Compliance parameters
   const double translational_stiffness{15.0};
@@ -82,28 +82,6 @@ int main(int argc, char** argv) {
   // phantom force for demo testing
   Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
 
-  //connect to sensor
-  net_ft_driver::ft_info input;
-  input.ip_address = "192.168.18.12";
-  input.sensor_type = "ati_axia";
-  input.rdt_sampling_rate = 1000;
-  input.use_biasing = "true";
-  input.internal_filter_rate = 0;
-
-  Eigen::Matrix<double, 3, 3> sensor_rotation;
-  //45 degrees clockwise
-  sensor_rotation << std::cos(M_PI_4), -std::sin(M_PI_4), 0,
-                      std::sin(M_PI_4), std::cos(M_PI_4), 0,
-                      0,                0,                1;
-  
-  Eigen::MatrixXd sensor_adjoint(6, 6);
-  sensor_adjoint.setZero();
-  sensor_adjoint.topLeftCorner(3, 3) << sensor_rotation;
-  sensor_adjoint.bottomRightCorner(3,3) << sensor_rotation;
-
-  net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
-  std::cout << "Sensor started." << std::endl;
-
   // thread-safe queue to transfer robot data to ROS
   SafeQueue<queue_package> transfer_package;
   std::vector<queue_package> dump_vector;
@@ -111,7 +89,7 @@ int main(int argc, char** argv) {
   try {
     // connect to robot
     franka::Robot robot(argv[1]);
-    setDefaultBehavior(robot, 0.80);
+    setDefaultBehavior(robot);
 
     // First move the robot to a suitable joint configuration
     std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
@@ -134,30 +112,32 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
-    if (calc_mode == "SPRINGDEMO") {
-      std::array<double, 7> springY_goal_far = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
-      std::array<double, 7> springY_goal_near = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
-      MotionGenerator spring_motion_generator(0.5, springY_goal_near);
-
-      robot.control(spring_motion_generator);
-      std::cout << "Finished moving to spring offset configuration." << std::endl;
-
-      franka::RobotState spring_state = robot.readOnce();
-
-      // spring point is about 0.3 in the y direction
-      Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
-      Eigen::Vector3d position_spring(spring_transform.translation());
-      trajectory sim_traj = simulate(
-        position_spring - position_d,
-        translational_stiffness, 
-        translational_damping_factor * sqrt(translational_stiffness),
-        virtual_mass.diagonal().head<3>(),
-        Eigen::Vector3d::Zero()
-      );
-      expected_pos = sim_traj.position;
-      expected_vel = sim_traj.velocity;
-      expected_accel = sim_traj.acceleration;
+    std::array<double, 7> springY_goal;
+    if (start_distance == "FAR") {
+      springY_goal = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
+    } else {
+      springY_goal = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
     }
+    MotionGenerator spring_motion_generator(0.5, springY_goal);
+
+    robot.control(spring_motion_generator);
+    std::cout << "Finished moving to spring offset configuration." << std::endl;
+
+    franka::RobotState spring_state = robot.readOnce();
+
+    // spring point is about 0.3 in the y direction
+    Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
+    Eigen::Vector3d position_spring(spring_transform.translation());
+    trajectory sim_traj = simulate(
+      position_spring - position_d,
+      translational_stiffness, 
+      translational_damping_factor * sqrt(translational_stiffness),
+      virtual_mass.diagonal().head<3>(),
+      Eigen::Vector3d::Zero()
+    );
+    expected_pos = sim_traj.position;
+    expected_vel = sim_traj.velocity;
+    expected_accel = sim_traj.acceleration;
 
     // set collision behavior
     robot.setCollisionBehavior({{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
@@ -175,10 +155,6 @@ int main(int argc, char** argv) {
       std::array<double, 42> jacobian_array =
           model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
       std::array<double, 49> mass_array = model.mass(robot_state);
-                      
-      // update sensor data
-      sensor.read();
-      std::array<double, 6> ft_reading = sensor.ft_sensor_measurements_;
 
       // convert to Eigen
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
@@ -189,20 +165,10 @@ int main(int argc, char** argv) {
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J(robot_state.tau_J.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J_d(robot_state.tau_J_d.data());
-      Eigen::Map<Eigen::Matrix<double, 6, 1>> fext(ft_reading.data());
+      Eigen::Matrix<double, 6, 1> fext;
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
-
-      // TODO wrench translations should all be part of the adjoint
-      // translate wrench from FT sensor as wrench in EE frame. MR 3.98
-      fext = sensor_adjoint.transpose() * fext;
-      // swap sign for gravity
-      fext(2) = -fext(2);
-      // swap sign for x-axis
-      fext(0) = -fext(0);
-      // torque in Z and X already resist user, invert Y to also resist user
-      fext(4) = -fext(4);
       
       // static, set initial to current jacobian. Double check this.
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
@@ -226,13 +192,7 @@ int main(int argc, char** argv) {
       // compute error to desired equilibrium pose
       // position error
       Eigen::Matrix<double, 6, 1> error;
-      if (calc_mode == "TRACK") {
-        error.head(3).setZero();
-      } else if (calc_mode == "SPRINGY") {
-        error.segment<3>(0) << 0.0, position(1) - position_d(1), 0.0;
-      } else if (calc_mode == "SPRING" || calc_mode == "SPRINGDEMO") {
-        error.head(3) << position - position_d;
-      }
+      error.head(3) << position - position_d;
       
       // orientation error
       // "difference" quaternion
@@ -249,7 +209,8 @@ int main(int argc, char** argv) {
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
 
-      fext = phantom_fext * (jacobian * dq)[1];
+      // fext = phantom_fext * (jacobian * dq)[1];
+      fext.setZero();
       static int fullCount = 0;
 
       //pull for two sec, go to 10 N over two sec
@@ -259,10 +220,10 @@ int main(int argc, char** argv) {
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // feed forward control instead for demo
-      if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
-        ddx_d.head<3>() = expected_accel[fullCount];
-        ddx_d.tail(3).setZero();
-      }
+      // if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
+      //   ddx_d.head<3>() = expected_accel[fullCount];
+      //   ddx_d.tail(3).setZero();
+      // }
       
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
@@ -291,7 +252,7 @@ int main(int argc, char** argv) {
       }
       fullCount++;
 
-      if (count == 10) {
+      if (count == 20) {
         queue_package new_package;
         new_package.desired_accel = Eigen::Matrix<double, 6, 1>(ddx_d);
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);
