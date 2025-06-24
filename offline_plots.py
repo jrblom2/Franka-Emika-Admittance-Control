@@ -83,6 +83,28 @@ def plot_torques(file1, file2, labels):
     plt.close()
 
 
+# Special plotter for joints
+def plot_joints(file1, labels):
+    df1 = pd.read_csv(os.path.join(data_dir, file1 + '.csv'), header=None)
+    time = df1.index / sampling_rate
+
+    fig, axs = plt.subplots(3, 3, figsize=(15, 15))
+    axs = axs.flatten()
+
+    for i in range(len(labels)):
+        axs[i].plot(time, df1[i], label=f'{labels[i]} Desired Accel')
+        axs[i].set_title(labels[i])
+        axs[i].set_xlabel('Time (s)')
+        axs[i].set_ylabel('R/S^2')
+        axs[i].grid(True)
+        axs[i].legend()
+
+    fig.tight_layout(pad=4.0, w_pad=4.0)
+    fig.suptitle('Plot for Joint Accels', fontsize=16, y=1.05)
+    plt.savefig(os.path.join(output_dir, 'joint_accels_d.png'), bbox_inches='tight')
+    plt.close()
+
+
 # === Call Plotting Functions ===
 
 plot_data('actual_wrench', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'N', 6)
@@ -91,3 +113,4 @@ plot_data('desired_accel', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'M/S²', 6)
 
 plot_comparison('translation', 'translation_d', ['X', 'Y', 'Z'], 'M', 'translation', suptitle='Plot for translation')
 plot_torques('torques_d', 'torques_g', [f'Joint {i+1}' for i in range(7)])
+plot_joints('joints_accel_d', [f'Joint {i+1}' for i in range(7)])
