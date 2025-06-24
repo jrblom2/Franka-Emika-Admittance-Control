@@ -43,15 +43,13 @@ void signal_handler(int signal) {
 int main(int argc, char** argv) {
   std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  " <distance>" << std::endl;
+  if (argc != 4) {
+    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  " <distance>" << " <publish?>" << std::endl;
     return -1;
   }
 
-  // RCL Init
-  // rclcpp::init(argc, argv);
-
   std::string start_distance{argv[2]};
+  std::string ros2_publish{argv[3]};
 
   // Compliance parameters
   const double translational_stiffness{15.0};
@@ -83,6 +81,7 @@ int main(int argc, char** argv) {
   Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
 
   // thread-safe queue to transfer robot data to ROS
+  std::thread spin_thread;
   SafeQueue<queue_package> transfer_package;
   std::vector<queue_package> dump_vector;
 
@@ -112,13 +111,15 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
-    std::array<double, 7> springY_goal;
+    std::array<double, 7> spring_goal;
     if (start_distance == "FAR") {
-      springY_goal = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
+      spring_goal = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
+    } else  if (start_distance == "NEAR") {
+      spring_goal = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
     } else {
-      springY_goal = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
+      spring_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, -M_PI_4}};
     }
-    MotionGenerator spring_motion_generator(0.5, springY_goal);
+    MotionGenerator spring_motion_generator(0.5, spring_goal);
 
     robot.control(spring_motion_generator);
     std::cout << "Finished moving to spring offset configuration." << std::endl;
@@ -264,7 +265,9 @@ int main(int argc, char** argv) {
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
-        // transfer_package.Produce(std::move(new_package));
+        if (ros2_publish == "TRUE") {
+          transfer_package.Produce(std::move(new_package));
+        }
         dump_vector.push_back(std::move(new_package));
         count = 0;
       }
@@ -284,10 +287,13 @@ int main(int argc, char** argv) {
     std::cin.ignore();
 
     // data bridge through ROS2 setup
-    // auto node = std::make_shared<MinimalPublisher>(transfer_package);
-    // rclcpp::executors::MultiThreadedExecutor executor;
-    // executor.add_node(node);
-    // std::thread spin_thread([&executor](){ executor.spin(); });
+    if (ros2_publish == "TRUE") {
+      rclcpp::init(argc, argv);
+      auto node = std::make_shared<MinimalPublisher>(transfer_package);
+      rclcpp::executors::MultiThreadedExecutor executor;
+      executor.add_node(node);
+      spin_thread = std::thread([&executor]() { executor.spin(); });
+    }
 
     robot.control(impedance_control_callback);
   } catch (const franka::Exception& ex) {
@@ -299,8 +305,10 @@ int main(int argc, char** argv) {
       std::cerr << "Unknown exception caught." << std::endl;
   }
 
-  // rclcpp::shutdown();
-  // spin_thread.join();
+  if (ros2_publish == "TRUE") {
+    rclcpp::shutdown();
+    spin_thread.join();
+  }
 
   robot_dump(dump_vector);
 

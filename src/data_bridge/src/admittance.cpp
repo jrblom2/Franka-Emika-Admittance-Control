@@ -43,15 +43,13 @@ void signal_handler(int signal) {
 int main(int argc, char** argv) {
   std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  " <control-calc>" << std::endl;
+  if (argc != 4) {
+    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  " <distance>" << " <publish?>"<< std::endl;
     return -1;
   }
 
-  // RCL Init
-  // rclcpp::init(argc, argv);
-
   std::string calc_mode{argv[2]};
+  std::string ros2_publish{argv[3]};
 
   // Compliance parameters
   const double translational_stiffness{15.0};
@@ -105,6 +103,7 @@ int main(int argc, char** argv) {
   std::cout << "Sensor started." << std::endl;
 
   // thread-safe queue to transfer robot data to ROS
+  std::thread spin_thread;
   SafeQueue<queue_package> transfer_package;
   std::vector<queue_package> dump_vector;
 
@@ -303,7 +302,9 @@ int main(int argc, char** argv) {
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
-        // transfer_package.Produce(std::move(new_package));
+        if (ros2_publish == "TRUE") {
+          transfer_package.Produce(std::move(new_package));
+        }
         dump_vector.push_back(std::move(new_package));
         count = 0;
       }
@@ -323,10 +324,13 @@ int main(int argc, char** argv) {
     std::cin.ignore();
 
     // data bridge through ROS2 setup
-    // auto node = std::make_shared<MinimalPublisher>(transfer_package);
-    // rclcpp::executors::MultiThreadedExecutor executor;
-    // executor.add_node(node);
-    // std::thread spin_thread([&executor](){ executor.spin(); });
+    if (ros2_publish == "TRUE") {
+      rclcpp::init(argc, argv);
+      auto node = std::make_shared<MinimalPublisher>(transfer_package);
+      rclcpp::executors::MultiThreadedExecutor executor;
+      executor.add_node(node);
+      spin_thread = std::thread([&executor]() { executor.spin(); });
+    }
 
     robot.control(impedance_control_callback);
   } catch (const franka::Exception& ex) {
@@ -338,8 +342,10 @@ int main(int argc, char** argv) {
       std::cerr << "Unknown exception caught." << std::endl;
   }
 
-  // rclcpp::shutdown();
-  // spin_thread.join();
+  if (ros2_publish == "TRUE") {
+    rclcpp::shutdown();
+    spin_thread.join();
+  }
 
   robot_dump(dump_vector);
 
