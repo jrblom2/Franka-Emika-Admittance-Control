@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
   virtual_mass = virtual_mass * virtual_mass_scaling;
 
   // phantom force for demo testing
-  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
+  // Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
 
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
@@ -231,7 +231,10 @@ int main(int argc, char** argv) {
       Eigen::VectorXd ddq_d(7);
       ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
       // MR 8.1
+      std::cout << "Mass: " << std::endl;
+      std::cout << mass << std::endl;
       tau_task << mass * ddq_d;
+      std::cout << tau_task << std::endl;
 
       // add all control elements together
       tau_d << tau_task + coriolis;

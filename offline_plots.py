@@ -2,6 +2,7 @@ import os
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import ScalarFormatter
 
 # Argument parsing
 parser = argparse.ArgumentParser(description='Plot data from CSV files.')
@@ -98,6 +99,11 @@ def plot_joints(file1, labels):
         axs[i].set_ylabel('R/S^2')
         axs[i].grid(True)
         axs[i].legend()
+
+        for axis in [axs[i].xaxis, axs[i].yaxis]:
+            formatter = ScalarFormatter(useOffset=False, useMathText=False)
+            formatter.set_scientific(False)
+            axis.set_major_formatter(formatter)
 
     fig.tight_layout(pad=4.0, w_pad=4.0)
     fig.suptitle('Plot for Joint Accels', fontsize=16, y=1.05)

@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
   virtual_mass = virtual_mass * virtual_mass_scaling;
 
   // phantom force for demo testing
-  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
+  // Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
     if (calc_mode == "SPRINGDEMO") {
-      std::array<double, 7> springY_goal_far = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
+      // std::array<double, 7> springY_goal_far = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
       std::array<double, 7> springY_goal_near = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
       MotionGenerator spring_motion_generator(0.5, springY_goal_near);
 
@@ -248,7 +248,7 @@ int main(int argc, char** argv) {
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
 
-      fext = phantom_fext * (jacobian * dq)[1];
+      // fext = phantom_fext * (jacobian * dq)[1];
       static int fullCount = 0;
 
       //pull for two sec, go to 10 N over two sec
@@ -302,6 +302,7 @@ int main(int argc, char** argv) {
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
+        new_package.ddq_d = ddq_d;
         if (ros2_publish == "TRUE") {
           transfer_package.Produce(std::move(new_package));
         }
