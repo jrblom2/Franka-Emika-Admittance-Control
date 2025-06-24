@@ -52,9 +52,9 @@ int main(int argc, char** argv) {
 
   // Compliance parameters
   const double translational_stiffness{15.0};
-  const double rotational_stiffness{50.0};
+  const double rotational_stiffness{30.0};
   const double translational_damping_factor{0.0};
-  const double rotational_damping_factor{2.0};
+  const double rotational_damping_factor{0.0};
   const double virtual_mass_scaling{1.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
-    std::array<double, 7> spring_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, -M_PI_4}};
+    std::array<double, 7> spring_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_2}};
     MotionGenerator spring_motion_generator(0.5, spring_goal);
 
     robot.control(spring_motion_generator);
@@ -209,7 +209,7 @@ int main(int argc, char** argv) {
       //pull for two sec, go to 10 N over two sec
       // if (fullCount < 2000) {
       //   fext[1] = fullCount / 200.0;
-      // } 
+      // }
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // feed forward control instead for demo
@@ -221,6 +221,12 @@ int main(int argc, char** argv) {
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
 
+      // MR 6.7 weighted pseudoinverse
+      // Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
+      // joint_weights(6) = 1.0;
+      // Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
+      // Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
+
       // MR 11.66
       Eigen::VectorXd ddq_d(7);
       ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
@@ -229,7 +235,6 @@ int main(int argc, char** argv) {
 
       // add all control elements together
       tau_d << tau_task + coriolis;
-
       // output format
       std::array<double, 7> tau_d_array;
       Eigen::Map<Eigen::Matrix<double, 7, 1>>(tau_d_array.data()) = tau_d;
@@ -257,6 +262,7 @@ int main(int argc, char** argv) {
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
+        new_package.ddq_d = ddq_d;
         if (ros2_publish == "TRUE") {
           transfer_package.Produce(std::move(new_package));
         }

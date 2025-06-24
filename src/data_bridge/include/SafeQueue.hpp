@@ -22,6 +22,7 @@ struct queue_package {
 	Eigen::VectorXd torques_o;
 	Eigen::VectorXd torques_c;
 	Eigen::VectorXd torques_g;
+	Eigen::VectorXd ddq_d;
 };
 
 template<class T>

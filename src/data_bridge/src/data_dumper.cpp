@@ -21,6 +21,7 @@ void robot_dump(const std::vector<queue_package> & data) {
     std::ofstream torques_o_file(output_dir / "torques_o.csv");
     std::ofstream torques_c_file(output_dir / "torques_c.csv");
     std::ofstream torques_g_file(output_dir / "torques_g.csv");
+    std::ofstream desired_joint_accel_file(output_dir / "joints_accel_d.csv");
 
     // Set precision for floats
     desired_accel_file << std::fixed << std::setprecision(4);
@@ -33,6 +34,7 @@ void robot_dump(const std::vector<queue_package> & data) {
     torques_o_file << std::fixed << std::setprecision(4);
     torques_c_file << std::fixed << std::setprecision(4);
     torques_g_file << std::fixed << std::setprecision(4);
+    desired_joint_accel_file << std::fixed << std::setprecision(4);
 
     // Iterate through the data
     for (const queue_package& moment : data) {
@@ -65,5 +67,7 @@ void robot_dump(const std::vector<queue_package> & data) {
 
         for (int i = 0; i < moment.torques_g.size(); ++i)
             torques_g_file << moment.torques_g(i) << (i < moment.torques_g.size() - 1 ? "," : "\n");
+        for (int i = 0; i < moment.ddq_d.size(); ++i)
+            desired_joint_accel_file << moment.ddq_d(i) << (i < moment.ddq_d.size() - 1 ? "," : "\n");
     }
 }
