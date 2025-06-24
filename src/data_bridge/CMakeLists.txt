@@ -37,6 +37,7 @@ set(EXAMPLES
   white_light
   admittance
   spring_demo
+  one_joint
 )
 
 foreach(example ${EXAMPLES})

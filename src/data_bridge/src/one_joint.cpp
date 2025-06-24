@@ -43,8 +43,8 @@ void signal_handler(int signal) {
 int main(int argc, char** argv) {
   std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed
-  if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << " <publish?>" << std::endl;
+  if (argc != 4) {
+    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  " <distance>" << " <publish?>" << std::endl;
     return -1;
   }
 
@@ -111,7 +111,14 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
-    std::array<double, 7> spring_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, -M_PI_4}};
+    std::array<double, 7> spring_goal;
+    if (start_distance == "FAR") {
+      spring_goal = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
+    } else  if (start_distance == "NEAR") {
+      spring_goal = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
+    } else {
+      spring_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, -M_PI_4}};
+    }
     MotionGenerator spring_motion_generator(0.5, spring_goal);
 
     robot.control(spring_motion_generator);
