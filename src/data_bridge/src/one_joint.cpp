@@ -52,19 +52,11 @@ int main(int argc, char** argv) {
 
   // Compliance parameters
   const double translational_stiffness{15.0};
-  const double rotational_stiffness{30.0};
+  const double rotational_stiffness{3000.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{0.0};
   const double virtual_mass_scaling{1.0};
-  Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
-  stiffness.setZero();
-  stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
-  stiffness.bottomRightCorner(3, 3) << rotational_stiffness * Eigen::MatrixXd::Identity(3, 3);
-  damping.setZero();
-  damping.topLeftCorner(3, 3) << translational_damping_factor * sqrt(translational_stiffness) *
-                                     Eigen::MatrixXd::Identity(3, 3);
-  damping.bottomRightCorner(3, 3) << rotational_damping_factor * sqrt(rotational_stiffness) *
-                                         Eigen::MatrixXd::Identity(3, 3);
+  Eigen::MatrixXd virtual_mass(6, 6);
   
   //mass matrix of robot is about as follows:
   virtual_mass.setZero();
@@ -110,7 +102,7 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
-    std::array<double, 7> spring_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_2}};
+    std::array<double, 7> spring_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, -M_PI_4}};
     MotionGenerator spring_motion_generator(0.5, spring_goal);
 
     robot.control(spring_motion_generator);
@@ -176,65 +168,28 @@ int main(int argc, char** argv) {
 
       // non static update
       old_jacobian = jacobian;
-      
-      // mass matrix in cartesian space, Alpha. Use this in place of any operation using M but needs 6x6
-      // diagnol of alpha is about 11,4,5,1,1,1
-      // Eigen::Matrix<double, 6, 6> alpha;
-      // alpha << (jacobian * mass.inverse() * jacobian.transpose()).inverse();
 
-      // compute error to desired equilibrium pose
-      // position error
-      Eigen::Matrix<double, 6, 1> error;
-      error.head(3) << position - position_d;
-      
-      // orientation error
-      // "difference" quaternion
-      if (orientation_d.coeffs().dot(orientation.coeffs()) < 0.0) {
-        orientation.coeffs() << -orientation.coeffs();
-      }
-
-      // "difference" quaternion
-      Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d);
-      error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
-      // Transform to base frame
-      error.tail(3) << -transform.rotation() * error.tail(3);
-
-      // MR 11.66
-      Eigen::VectorXd ddx_d(6);
-
-      // fext = phantom_fext * (jacobian * dq)[1];
-      fext.setZero();
-      static int fullCount = 0;
-
-      //pull for two sec, go to 10 N over two sec
-      // if (fullCount < 2000) {
-      //   fext[1] = fullCount / 200.0;
-      // }
-      ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
-
-      // feed forward control instead for demo
-      // if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
-      //   ddx_d.head<3>() = expected_accel[fullCount];
-      //   ddx_d.tail(3).setZero();
-      // }
-      
-      // compute control
-      Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
-
-      // MR 6.7 weighted pseudoinverse
-      // Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
-      // joint_weights(6) = 1.0;
-      // Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
-      // Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
+      //error in just twister is home position - joint value
+      double error = q(6, 0) - M_PI_4;
 
       // MR 11.66
       Eigen::VectorXd ddq_d(7);
-      ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
+      ddq_d.setZero();
+      double damping = rotational_damping_factor * sqrt(rotational_stiffness);
+
+      // get one dimensional joint acceleration by just taking the one row of the equation we care about.
+      // instead of EE pose error we get joint position error but both are in radians so should be same
+      ddq_d(6) = virtual_mass.inverse()(5, 5) * (-(damping * dq(6, 0)) - (rotational_stiffness * error));
+      
+      // compute control
+      Eigen::VectorXd tau_task(7), tau_d(7);
+
       // MR 8.1
-      std::cout << "Mass: " << std::endl;
-      std::cout << mass << std::endl;
-      tau_task << mass * ddq_d;
-      std::cout << tau_task << std::endl;
+      tau_task.setZero();
+
+      // z axis from joint 7 inertia matrix, pulled form URDF in Davids project.
+      double z_inertia = 0.0001794;
+      tau_task(6) = z_inertia * ddq_d(6);
 
       // add all control elements together
       tau_d << tau_task + coriolis;
@@ -244,24 +199,24 @@ int main(int argc, char** argv) {
       franka::Torques torques = tau_d_array;
 
       // publish results
+      static int fullCount = 0;
       static int count = 0;
       count++;
       static Eigen::Vector3d predicted = position;
-
       if (expected_pos.size() > 0 && fullCount < (int)expected_pos.size()) {
         predicted = expected_pos[fullCount] + position_d;
       }
       fullCount++;
 
-      if (count == 20) {
+      if (count == 10) {
         queue_package new_package;
-        new_package.desired_accel = Eigen::Matrix<double, 6, 1>(ddx_d);
+        new_package.desired_accel = Eigen::Matrix<double, 6, 1>::Zero();
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);
-        new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
+        new_package.orientation_error = Eigen::Matrix<double, 3, 1>::Zero();
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted);
         new_package.velocity = (jacobian * dq).head(3).reshaped();
-        new_package.torques_d = tau_d;
+        new_package.torques_d = tau_task;
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();

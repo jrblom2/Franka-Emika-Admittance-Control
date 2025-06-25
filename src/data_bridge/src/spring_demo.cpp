@@ -227,6 +227,12 @@ int main(int argc, char** argv) {
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
 
+      // MR 6.7 weighted pseudoinverse
+      // Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
+      // joint_weights(6) = 0.001;
+      // Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
+      // Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
+
       // MR 11.66
       Eigen::VectorXd ddq_d(7);
       ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
@@ -251,7 +257,7 @@ int main(int argc, char** argv) {
       }
       fullCount++;
 
-      if (count == 20) {
+      if (count == 10) {
         queue_package new_package;
         new_package.desired_accel = Eigen::Matrix<double, 6, 1>(ddx_d);
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);

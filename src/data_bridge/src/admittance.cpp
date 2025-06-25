@@ -43,13 +43,12 @@ void signal_handler(int signal) {
 int main(int argc, char** argv) {
   std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed
-  if (argc != 4) {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  " <distance>" << " <publish?>"<< std::endl;
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << " <publish?>"<< std::endl;
     return -1;
   }
 
-  std::string calc_mode{argv[2]};
-  std::string ros2_publish{argv[3]};
+  std::string ros2_publish{argv[2]};
 
   // Compliance parameters
   const double translational_stiffness{15.0};
@@ -133,30 +132,6 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
-    if (calc_mode == "SPRINGDEMO") {
-      // std::array<double, 7> springY_goal_far = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
-      std::array<double, 7> springY_goal_near = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
-      MotionGenerator spring_motion_generator(0.5, springY_goal_near);
-
-      robot.control(spring_motion_generator);
-      std::cout << "Finished moving to spring offset configuration." << std::endl;
-
-      franka::RobotState spring_state = robot.readOnce();
-
-      // spring point is about 0.3 in the y direction
-      Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
-      Eigen::Vector3d position_spring(spring_transform.translation());
-      trajectory sim_traj = simulate(
-        position_spring - position_d,
-        translational_stiffness, 
-        translational_damping_factor * sqrt(translational_stiffness),
-        virtual_mass.diagonal().head<3>(),
-        Eigen::Vector3d::Zero()
-      );
-      expected_pos = sim_traj.position;
-      expected_vel = sim_traj.velocity;
-      expected_accel = sim_traj.acceleration;
-    }
 
     // set collision behavior
     robot.setCollisionBehavior({{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
@@ -216,22 +191,11 @@ int main(int argc, char** argv) {
 
       // non static update
       old_jacobian = jacobian;
-      
-      // mass matrix in cartesian space, Alpha. Use this in place of any operation using M but needs 6x6
-      // diagnol of alpha is about 11,4,5,1,1,1
-      // Eigen::Matrix<double, 6, 6> alpha;
-      // alpha << (jacobian * mass.inverse() * jacobian.transpose()).inverse();
 
       // compute error to desired equilibrium pose
       // position error
       Eigen::Matrix<double, 6, 1> error;
-      if (calc_mode == "TRACK") {
-        error.head(3).setZero();
-      } else if (calc_mode == "SPRINGY") {
-        error.segment<3>(0) << 0.0, position(1) - position_d(1), 0.0;
-      } else if (calc_mode == "SPRING" || calc_mode == "SPRINGDEMO") {
-        error.head(3) << position - position_d;
-      }
+      error.head(3).setZero();
       
       // orientation error
       // "difference" quaternion
@@ -248,20 +212,7 @@ int main(int argc, char** argv) {
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
 
-      // fext = phantom_fext * (jacobian * dq)[1];
-      static int fullCount = 0;
-
-      //pull for two sec, go to 10 N over two sec
-      // if (fullCount < 2000) {
-      //   fext[1] = fullCount / 200.0;
-      // } 
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
-
-      // feed forward control instead for demo
-      if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
-        ddx_d.head<3>() = expected_accel[fullCount];
-        ddx_d.tail(3).setZero();
-      }
       
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
@@ -281,6 +232,7 @@ int main(int argc, char** argv) {
       franka::Torques torques = tau_d_array;
 
       // publish results
+      static int fullCount = 0;
       static int count = 0;
       count++;
       static Eigen::Vector3d predicted = position;
