@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
   virtual_mass = virtual_mass * virtual_mass_scaling;
 
   // phantom force for demo testing
-  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
+  // Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
 
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;

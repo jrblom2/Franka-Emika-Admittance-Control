@@ -52,24 +52,9 @@ int main(int argc, char** argv) {
 
   // Compliance parameters
   const double translational_stiffness{15.0};
-  const double rotational_stiffness{3000.0};
+  const double rotational_stiffness{600.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{0.0};
-  const double virtual_mass_scaling{1.0};
-  Eigen::MatrixXd virtual_mass(6, 6);
-  
-  //mass matrix of robot is about as follows:
-  virtual_mass.setZero();
-  virtual_mass(0,0) = 11;
-  virtual_mass(1,1) = 4;
-  virtual_mass(2,2) = 5;
-  virtual_mass(3,3) = 1;
-  virtual_mass(4,4) = 1;
-  virtual_mass(5,5) = 1;
-  virtual_mass = virtual_mass * virtual_mass_scaling;
-
-  // phantom force for demo testing
-  // Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
 
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
@@ -102,7 +87,7 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
-    std::array<double, 7> spring_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, -M_PI_4}};
+    std::array<double, 7> spring_goal = {{M_PI_4, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
     MotionGenerator spring_motion_generator(0.5, spring_goal);
 
     robot.control(spring_motion_generator);
@@ -117,7 +102,7 @@ int main(int argc, char** argv) {
       position_spring - position_d,
       translational_stiffness, 
       translational_damping_factor * sqrt(translational_stiffness),
-      virtual_mass.diagonal().head<3>(),
+      Eigen::Vector3d::Ones(),
       Eigen::Vector3d::Zero()
     );
     expected_pos = sim_traj.position;
@@ -170,7 +155,7 @@ int main(int argc, char** argv) {
       old_jacobian = jacobian;
 
       //error in just twister is home position - joint value
-      double error = q(6, 0) - M_PI_4;
+      double error = q(0, 0) - 0;
 
       // MR 11.66
       Eigen::VectorXd ddq_d(7);
@@ -179,18 +164,18 @@ int main(int argc, char** argv) {
 
       // get one dimensional joint acceleration by just taking the one row of the equation we care about.
       // instead of EE pose error we get joint position error but both are in radians so should be same
-      ddq_d(6) = virtual_mass.inverse()(5, 5) * (-(damping * dq(6, 0)) - (rotational_stiffness * error));
+      ddq_d(0) = 1 * (-(damping * dq(0, 0)) - (rotational_stiffness * error));
       
       // compute control
       Eigen::VectorXd tau_task(7), tau_d(7);
 
-      // MR 8.1
       tau_task.setZero();
 
       // z axis from joint 7 inertia matrix, pulled form URDF in Davids project.
-      double z_inertia = 0.0001794;
-      tau_task(6) = z_inertia * ddq_d(6);
-
+      // double joint7_z_inertia = 0.0001794;
+      double joint1_z_inertia = 0.00500443991;
+      tau_task(0) = joint1_z_inertia * ddq_d(0);
+      static int fullCount = 0;
       // add all control elements together
       tau_d << tau_task + coriolis;
       // output format
@@ -199,7 +184,6 @@ int main(int argc, char** argv) {
       franka::Torques torques = tau_d_array;
 
       // publish results
-      static int fullCount = 0;
       static int count = 0;
       count++;
       static Eigen::Vector3d predicted = position;
