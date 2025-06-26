@@ -85,18 +85,18 @@ def plot_torques(file1, file2, labels):
 
 
 # Special plotter for joints
-def plot_joints(file1, labels):
-    df1 = pd.read_csv(os.path.join(data_dir, file1 + '.csv'), header=None)
+def plot_joints(file, labels, units):
+    df1 = pd.read_csv(os.path.join(data_dir, file + '.csv'), header=None)
     time = df1.index / sampling_rate
 
     fig, axs = plt.subplots(3, 3, figsize=(15, 15))
     axs = axs.flatten()
 
     for i in range(len(labels)):
-        axs[i].plot(time, df1[i], label=f'{labels[i]} Desired Accel')
+        axs[i].plot(time, df1[i], label=labels[i])
         axs[i].set_title(labels[i])
         axs[i].set_xlabel('Time (s)')
-        axs[i].set_ylabel('R/S^2')
+        axs[i].set_ylabel(units)
         axs[i].grid(True)
         axs[i].legend()
 
@@ -107,7 +107,7 @@ def plot_joints(file1, labels):
 
     fig.tight_layout(pad=4.0, w_pad=4.0)
     fig.suptitle('Plot for Joint Accels', fontsize=16, y=1.05)
-    plt.savefig(os.path.join(output_dir, 'joint_accels_d.png'), bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'{file}.png'), bbox_inches='tight')
     plt.close()
 
 
@@ -119,4 +119,5 @@ plot_data('desired_accel', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'M/S²', 6)
 
 plot_comparison('translation', 'translation_d', ['X', 'Y', 'Z'], 'M', 'translation', suptitle='Plot for translation')
 plot_torques('torques_d', 'torques_g', [f'Joint {i+1}' for i in range(7)])
-plot_joints('joints_accel_d', [f'Joint {i+1}' for i in range(7)])
+plot_joints('joints_accel_d', [f'Joint {i+1} Desired Accel' for i in range(7)], 'R/S^2')
+plot_joints('joints_vel', [f'Joint {i+1}' for i in range(7)], 'R/S')

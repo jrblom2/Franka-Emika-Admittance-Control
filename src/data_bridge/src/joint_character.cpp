@@ -157,6 +157,7 @@ int main(int argc, char** argv) {
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped() - coriolis.reshaped();
         new_package.ddq_d = Eigen::VectorXd(7);
+        new_package.dq = dq;
         if (ros2_publish == "TRUE") {
           transfer_package.Produce(std::move(new_package));
         }

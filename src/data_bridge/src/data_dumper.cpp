@@ -69,8 +69,10 @@ void robot_dump(const std::vector<queue_package> & data) {
 
         for (int i = 0; i < moment.torques_g.size(); ++i)
             torques_g_file << moment.torques_g(i) << (i < moment.torques_g.size() - 1 ? "," : "\n");
+        
         for (int i = 0; i < moment.ddq_d.size(); ++i)
             desired_joint_accel_file << moment.ddq_d(i) << (i < moment.ddq_d.size() - 1 ? "," : "\n");
+        
         for (int i = 0; i < moment.dq.size(); ++i)
             joint_vel_file << moment.dq(i) << (i < moment.dq.size() - 1 ? "," : "\n");
     }
