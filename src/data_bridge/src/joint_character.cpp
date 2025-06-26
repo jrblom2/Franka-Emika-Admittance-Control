@@ -116,11 +116,11 @@ int main(int argc, char** argv) {
 
       tau_task.setZero();
 
-      //sinusoid movement between -1 and 1 starting at 0, over five seconds
-      // double goal = sin(fullCount * 2 * M_PI / 5000);
+      // sinusoid movement between -1 and 1 starting at 0, over five seconds
+      double goal = sin(fullCount * 2 * M_PI / 3000);
 
       //magnitude of 1 newton
-      tau_task(0) = 3.0;
+      tau_task(0) = 0.5 * goal;
       
       double max_torque_accel = 10.0 / 1000;
       // if torque acceleration exceeds 10/s, throttle to 10.
