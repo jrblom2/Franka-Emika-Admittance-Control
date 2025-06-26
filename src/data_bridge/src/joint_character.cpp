@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
     setDefaultBehavior(robot);
 
     // First move the robot to a suitable joint configuration
-    std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
+    std::array<double, 7> q_goal = {{-M_PI_2, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
     MotionGenerator motion_generator(0.5, q_goal);
 
     robot.control(motion_generator);
@@ -110,12 +110,26 @@ int main(int argc, char** argv) {
       
       // compute control
       Eigen::VectorXd tau_task(7), tau_d(7);
+      static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
       static int fullCount = 0;
       fullCount++;
 
       tau_task.setZero();
-      double goal = sin(fullCount * 2 * M_PI / 5000)
-      tau_task(0) = 1.0 * goal;
+
+      //sinusoid movement between -1 and 1 starting at 0, over five seconds
+      // double goal = sin(fullCount * 2 * M_PI / 5000);
+
+      //magnitude of 1 newton
+      tau_task(0) = 3.0;
+      
+      double max_torque_accel = 10.0 / 1000;
+      // if torque acceleration exceeds 10/s, throttle to 10.
+      // this should be after the coriolis inclusion for a real controller.
+      for (int i = 0; i < tau_task.size(); ++i) {
+        tau_task(i) = std::clamp(tau_task(i), last_task(i) - max_torque_accel, last_task(i) + max_torque_accel);
+      }
+
+      last_task = tau_task;
 
       // add all control elements together
       tau_d << tau_task + coriolis;
@@ -141,7 +155,7 @@ int main(int argc, char** argv) {
         new_package.torques_d = tau_task;
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
-        new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
+        new_package.torques_g = tau_J.reshaped() - gravity.reshaped() - coriolis.reshaped();
         new_package.ddq_d = Eigen::VectorXd(7);
         if (ros2_publish == "TRUE") {
           transfer_package.Produce(std::move(new_package));

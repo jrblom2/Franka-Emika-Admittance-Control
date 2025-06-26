@@ -205,6 +205,7 @@ int main(int argc, char** argv) {
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
         new_package.ddq_d = ddq_d;
+        new_package.dq = dq;
         if (ros2_publish == "TRUE") {
           transfer_package.Produce(std::move(new_package));
         }
