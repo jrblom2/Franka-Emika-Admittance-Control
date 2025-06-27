@@ -2,6 +2,9 @@
 This repository contains code to perform basic admitance control using a Franka Emika reasearch arm. It is structured like a ROS2 project and package, however ROS2 is not used directly for the control.
 
 ROS2 is used for the transfer of data out of the libFranka control loop to other devices on the network.
+
+![Admittance-control drawio](https://github.com/user-attachments/assets/495c2b81-609f-4b9e-ae93-49608633af93)
+
 ## Setup
 A lot of assumptions about system configuration are currently hardcoded in this project.
 1. Robot is assumed to be at 192.168.18.10 with an alias of panda0.robot
