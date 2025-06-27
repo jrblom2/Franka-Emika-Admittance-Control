@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
   std::string ros2_publish{argv[3]};
 
   // Compliance parameters
-  const double translational_stiffness{15.0};
+  const double translational_stiffness{60.0};
   const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
@@ -76,9 +76,6 @@ int main(int argc, char** argv) {
   virtual_mass(4,4) = 1;
   virtual_mass(5,5) = 1;
   virtual_mass = virtual_mass * virtual_mass_scaling;
-
-  // phantom force for demo testing
-  // Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
 
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
@@ -182,11 +179,6 @@ int main(int argc, char** argv) {
 
       // non static update
       old_jacobian = jacobian;
-      
-      // mass matrix in cartesian space, Alpha. Use this in place of any operation using M but needs 6x6
-      // diagnol of alpha is about 11,4,5,1,1,1
-      // Eigen::Matrix<double, 6, 6> alpha;
-      // alpha << (jacobian * mass.inverse() * jacobian.transpose()).inverse();
 
       // compute error to desired equilibrium pose
       // position error
@@ -226,21 +218,32 @@ int main(int argc, char** argv) {
       
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
+      static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
       // MR 6.7 weighted pseudoinverse
-      // Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
-      // joint_weights(6) = 0.001;
-      // Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
-      // Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
+      Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
+      joint_weights(0) = 0.1;
+      joint_weights(1) = 0.1;
+      joint_weights(2) = 0.1;
+      joint_weights(3) = 0.1;
+      Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
+      Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
 
       // MR 11.66
       Eigen::VectorXd ddq_d(7);
-      ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
+      ddq_d << weighted_pseudo_inverse * (ddx_d - (djacobian * dq));
       // MR 8.1
       tau_task << mass * ddq_d;
 
       // add all control elements together
       tau_d << tau_task + coriolis;
+      double max_torque_accel = 80.0 / 1000;
+      // if torque acceleration exceeds 80/s^2, throttle to 80.
+      for (int i = 0; i < tau_d.size(); ++i) {
+        tau_d(i) = std::clamp(tau_d(i), last_task(i) - max_torque_accel, last_task(i) + max_torque_accel);
+      }
+
+      last_task = tau_d;
 
       // output format
       std::array<double, 7> tau_d_array;
@@ -270,6 +273,7 @@ int main(int argc, char** argv) {
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
         new_package.ddq_d = ddq_d;
+        new_package.dq = dq;
         if (ros2_publish == "TRUE") {
           transfer_package.Produce(std::move(new_package));
         }
