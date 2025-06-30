@@ -38,3 +38,6 @@ log/
 
 # data files
 data/
+
+# scratch plotting
+scratch.py
