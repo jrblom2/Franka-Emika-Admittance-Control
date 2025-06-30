@@ -52,8 +52,8 @@ int main(int argc, char** argv) {
   std::string ros2_publish{argv[3]};
 
   // Compliance parameters
-  const double translational_stiffness{60.0};
-  const double rotational_stiffness{50.0};
+  const double translational_stiffness{100.0};
+  const double rotational_stiffness{30.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
   const double virtual_mass_scaling{1.0};
@@ -119,16 +119,13 @@ int main(int argc, char** argv) {
     // robot.control(spring_motion_generator);
     // std::cout << "Finished moving to spring offset configuration." << std::endl;
 
-    franka::RobotState spring_state = robot.readOnce();
+    // franka::RobotState spring_state = robot.readOnce();
 
-    // spring point is about 0.3 in the y direction
-    Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
-    Eigen::Vector3d position_spring(spring_transform.translation());
-    trajectory sim_traj = spring_simulate(
-      position_spring - position_d,
-      translational_stiffness, 
-      translational_damping_factor * sqrt(translational_stiffness),
-      virtual_mass.diagonal().head<3>(),
+    // // spring point is about 0.3 in the y direction
+    // Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
+    // Eigen::Vector3d position_spring(spring_transform.translation());
+    trajectory sim_traj = sin_simulate(
+      position_d,
       Eigen::Vector3d::Zero()
     );
     expected_pos = sim_traj.position;
@@ -207,28 +204,33 @@ int main(int argc, char** argv) {
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // feed forward control instead for demo
-      if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
-        ddx_d(1) = 2.5 * sin(fullCount * 2 * M_PI / 2000);
-      }
+      // if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
+      //   ddx_d(1) = 2.5 * cos(fullCount * 2 * M_PI / 2000);
+      // }
       
       // compute control
-      Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
+      Eigen::VectorXd tau_task(7), tau_d(7);
+
       static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
-      // MR 6.7 weighted pseudoinverse
-      Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
-      joint_weights(0) = 0.1;
-      joint_weights(1) = 0.1;
-      joint_weights(2) = 0.1;
-      joint_weights(3) = 0.1;
-      Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
-      Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
+      // // MR 6.7 weighted pseudoinverse
+      // Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
+      // // joint_weights(0) = 0.1;
+      // // joint_weights(1) = 0.1;
+      // // joint_weights(2) = 0.1;
+      // // joint_weights(3) = 0.1;
+      // Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
+      // Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
 
-      // MR 11.66
-      Eigen::VectorXd ddq_d(7);
-      ddq_d << weighted_pseudo_inverse * (ddx_d - (djacobian * dq));
-      // MR 8.1
-      tau_task << mass * ddq_d;
+      // // MR 11.66
+      // Eigen::VectorXd ddq_d(7);
+      // ddq_d << weighted_pseudo_inverse * (ddx_d - (djacobian * dq));
+      // // MR 8.1
+      // tau_task << mass * ddq_d;
+
+      tau_task.setZero();
+      // control orientation with just last three joints.
+      tau_task.tail(3) << jacobian.rightCols(3).bottomRows(3).transpose() * (-stiffness.bottomRightCorner(3, 3) * error.tail(3) - damping.bottomRightCorner(3, 3) * (jacobian.rightCols(3).bottomRows(3) * dq.tail(3)));
 
       // add all control elements together
       tau_d << tau_task + coriolis;
@@ -237,7 +239,6 @@ int main(int argc, char** argv) {
       for (int i = 0; i < tau_d.size(); ++i) {
         tau_d(i) = std::clamp(tau_d(i), last_task(i) - max_torque_accel, last_task(i) + max_torque_accel);
       }
-
       last_task = tau_d;
 
       // output format
@@ -267,7 +268,7 @@ int main(int argc, char** argv) {
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
-        new_package.ddq_d = ddq_d;
+        new_package.ddq_d = Eigen::VectorXd(7);
         new_package.dq = dq;
         if (ros2_publish == "TRUE") {
           transfer_package.Produce(std::move(new_package));

@@ -19,3 +19,5 @@ struct trajectory {
 // Returns:
 // - A set of vectors containing position, velocity, and acceleration over time
 trajectory spring_simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m, const Eigen::Vector3d& f_ext);
+
+trajectory sin_simulate(const Eigen::Vector3d& x0_vec, const Eigen::Vector3d& v0_vec);
