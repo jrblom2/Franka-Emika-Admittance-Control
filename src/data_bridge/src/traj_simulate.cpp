@@ -1,6 +1,6 @@
-#include "spring_simulate.hpp"
+#include "traj_simulate.hpp"
 
-trajectory simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m, const Eigen::Vector3d& f_ext) {
+trajectory spring_simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m, const Eigen::Vector3d& f_ext) {
     double v0 = 0.0;
     double dt = 0.001;
     double T = 20.0;

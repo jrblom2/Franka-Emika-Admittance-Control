@@ -18,7 +18,7 @@ add_subdirectory(src/net_ft)
 # set up examples_utils library
 add_library(utilities STATIC
   src/examples_common.cpp
-  src/spring_simulate.cpp
+  src/traj_simulate.cpp
   src/minimal_publisher.cpp
   src/data_dumper.cpp
 )

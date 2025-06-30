@@ -108,16 +108,16 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
-    std::array<double, 7> spring_goal;
-    if (start_distance == "FAR") {
-      spring_goal = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
-    } else {
-      spring_goal = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
-    }
-    MotionGenerator spring_motion_generator(0.5, spring_goal);
+    // std::array<double, 7> spring_goal;
+    // if (start_distance == "FAR") {
+    //   spring_goal = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
+    // } else {
+    //   spring_goal = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
+    // }
+    // MotionGenerator spring_motion_generator(0.5, spring_goal);
 
-    robot.control(spring_motion_generator);
-    std::cout << "Finished moving to spring offset configuration." << std::endl;
+    // robot.control(spring_motion_generator);
+    // std::cout << "Finished moving to spring offset configuration." << std::endl;
 
     franka::RobotState spring_state = robot.readOnce();
 
@@ -204,17 +204,12 @@ int main(int argc, char** argv) {
       fext.setZero();
       static int fullCount = 0;
 
-      //pull for two sec, go to 10 N over two sec
-      // if (fullCount < 2000) {
-      //   fext[1] = fullCount / 200.0;
-      // } 
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // feed forward control instead for demo
-      // if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
-      //   ddx_d.head<3>() = expected_accel[fullCount];
-      //   ddx_d.tail(3).setZero();
-      // }
+      if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
+        ddx_d(1) = 2.5 * sin(fullCount * 2 * M_PI / 2000);
+      }
       
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
