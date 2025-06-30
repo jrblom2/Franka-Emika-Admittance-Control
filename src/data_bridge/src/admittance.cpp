@@ -19,7 +19,7 @@
 #include "examples_common.h"
 #include "net_ft/hardware_interface.hpp"
 #include "SafeQueue.hpp"
-#include "spring_simulate.hpp"
+#include "traj_simulate.hpp"
 #include "minimal_publisher.hpp"
 #include "data_dumper.hpp"
 
@@ -128,11 +128,6 @@ int main(int argc, char** argv) {
     Eigen::Vector3d position_d(initial_transform.translation());
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
 
-    // if this is a demo, move to offset position and simulate expected movement
-    std::vector<Eigen::Vector3d> expected_pos;
-    std::vector<Eigen::Vector3d> expected_vel;
-    std::vector<Eigen::Vector3d> expected_accel;
-
     // set collision behavior
     robot.setCollisionBehavior({{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
                                {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
@@ -237,9 +232,6 @@ int main(int argc, char** argv) {
       count++;
       static Eigen::Vector3d predicted = position;
 
-      if (expected_pos.size() > 0 && fullCount < (int)expected_pos.size()) {
-        predicted = expected_pos[fullCount] + position_d;
-      }
       fullCount++;
 
       if (count == 10) {

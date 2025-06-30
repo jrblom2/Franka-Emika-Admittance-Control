@@ -19,7 +19,7 @@
 #include "examples_common.h"
 #include "net_ft/hardware_interface.hpp"
 #include "SafeQueue.hpp"
-#include "spring_simulate.hpp"
+#include "traj_simulate.hpp"
 #include "minimal_publisher.hpp"
 #include "data_dumper.hpp"
 
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
     // spring point is about 0.3 in the y direction
     Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
     Eigen::Vector3d position_spring(spring_transform.translation());
-    trajectory sim_traj = simulate(
+    trajectory sim_traj = spring_simulate(
       position_spring - position_d,
       translational_stiffness, 
       translational_damping_factor * sqrt(translational_stiffness),
