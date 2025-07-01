@@ -10,8 +10,6 @@ if [ "$DIRECTORY" == "latest" ]; then
         echo "No timestamped directories found on remote."
         exit 1
     fi
-
-    echo "Latest directory determined to be: $DIRECTORY"
 fi
 
 # Fetch the directory using rsync
