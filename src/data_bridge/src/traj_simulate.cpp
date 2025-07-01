@@ -72,7 +72,7 @@ trajectory sin_simulate(const Eigen::Vector3d& x0_vec, const Eigen::Vector3d& v0
 
     auto dv_dt = [](int fullCount) {
         Eigen::Vector3d acc = Eigen::Vector3d::Zero();
-        acc(1) = 0.5 * std::cos(fullCount * 2.0 * M_PI / 2000.0); // only y-direction
+        acc(1) = 1.0 * std::cos(fullCount * 2.0 * M_PI / 4000.0); // only y-direction
         return acc;
     };
 

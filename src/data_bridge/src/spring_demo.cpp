@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
 
   // Compliance parameters
   const double translational_stiffness{100.0};
-  const double rotational_stiffness{30.0};
+  const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
   const double virtual_mass_scaling{1.0};
@@ -108,22 +108,6 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
-    // std::array<double, 7> spring_goal;
-    // if (start_distance == "FAR") {
-    //   spring_goal = {{0.109, -0.414, 0.579, -2.011, 0.223, 1.667, 1.414}};
-    // } else {
-    //   spring_goal = {{0.072, -0.733, 0.201, -2.310, 0.137, 1.587, 1.009}};
-    // }
-    // MotionGenerator spring_motion_generator(0.5, spring_goal);
-
-    // robot.control(spring_motion_generator);
-    // std::cout << "Finished moving to spring offset configuration." << std::endl;
-
-    // franka::RobotState spring_state = robot.readOnce();
-
-    // // spring point is about 0.3 in the y direction
-    // Eigen::Affine3d spring_transform(Eigen::Matrix4d::Map(spring_state.O_T_EE.data()));
-    // Eigen::Vector3d position_spring(spring_transform.translation());
     trajectory sim_traj = sin_simulate(
       position_d,
       Eigen::Vector3d::Zero()
@@ -180,6 +164,7 @@ int main(int argc, char** argv) {
       // compute error to desired equilibrium pose
       // position error
       Eigen::Matrix<double, 6, 1> error;
+      static int fullCount = 0;
       error.head(3) << position - position_d;
       
       // orientation error
@@ -197,38 +182,28 @@ int main(int argc, char** argv) {
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
 
-      // fext = phantom_fext * (jacobian * dq)[1];
-      fext.setZero();
-      static int fullCount = 0;
-
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
-
-      // feed forward control instead for demo
-      // if (expected_accel.size() > 0 && fullCount < (int)expected_accel.size()) {
-      //   ddx_d(1) = 2.5 * cos(fullCount * 2 * M_PI / 2000);
-      // }
+      ddx_d(1) = 1.0 * cos(fullCount * 2 * M_PI / 4000.0);
+      ddx_d.tail(3).setZero();
       
       // compute control
       Eigen::VectorXd tau_task(7), tau_d(7);
 
       static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
-      // // MR 6.7 weighted pseudoinverse
-      // Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
-      // // joint_weights(0) = 0.1;
-      // // joint_weights(1) = 0.1;
-      // // joint_weights(2) = 0.1;
-      // // joint_weights(3) = 0.1;
-      // Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
-      // Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
+      // MR 6.7 weighted pseudoinverse
+      Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
+      joint_weights(0) = 0.25;
+      Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
+      Eigen::MatrixXd weighted_pseudo_inverse = W_inv.topLeftCorner(4,4) * jacobian.topRows(3).leftCols(4).transpose() * (jacobian.topRows(3).leftCols(4) * W_inv.topLeftCorner(4,4) * jacobian.topRows(3).leftCols(4).transpose()).inverse();
 
-      // // MR 11.66
-      // Eigen::VectorXd ddq_d(7);
-      // ddq_d << weighted_pseudo_inverse * (ddx_d - (djacobian * dq));
-      // // MR 8.1
-      // tau_task << mass * ddq_d;
+      // MR 11.66
+      Eigen::VectorXd ddq_d(7);
+      ddq_d.setZero();
+      ddq_d.head(4) << jacobian.topRows(3).leftCols(4).completeOrthogonalDecomposition().pseudoInverse() * (ddx_d.head(3) - (djacobian.topRows(3).leftCols(4) * dq.head(4)));
+      // MR 8.1
+      tau_task.head(4) << mass.topLeftCorner(4,4) * ddq_d.head(4);
 
-      tau_task.setZero();
       // control orientation with just last three joints.
       tau_task.tail(3) << jacobian.rightCols(3).bottomRows(3).transpose() * (-stiffness.bottomRightCorner(3, 3) * error.tail(3) - damping.bottomRightCorner(3, 3) * (jacobian.rightCols(3).bottomRows(3) * dq.tail(3)));
 
@@ -268,7 +243,7 @@ int main(int argc, char** argv) {
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
-        new_package.ddq_d = Eigen::VectorXd(7);
+        new_package.ddq_d = ddq_d;
         new_package.dq = dq;
         if (ros2_publish == "TRUE") {
           transfer_package.Produce(std::move(new_package));
