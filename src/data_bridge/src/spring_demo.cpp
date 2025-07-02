@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
   std::string ros2_publish{argv[3]};
 
   // Compliance parameters
-  const double translational_stiffness{100.0};
+  const double translational_stiffness{50.0};
   const double rotational_stiffness{50.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
@@ -69,9 +69,9 @@ int main(int argc, char** argv) {
   
   //mass matrix of robot is about as follows:
   virtual_mass.setZero();
-  virtual_mass(0,0) = 11;
-  virtual_mass(1,1) = 4;
-  virtual_mass(2,2) = 5;
+  virtual_mass(0,0) = 1;
+  virtual_mass(1,1) = 1;
+  virtual_mass(2,2) = 1;
   virtual_mass(3,3) = 1;
   virtual_mass(4,4) = 1;
   virtual_mass(5,5) = 1;
@@ -165,7 +165,9 @@ int main(int argc, char** argv) {
       // position error
       Eigen::Matrix<double, 6, 1> error;
       static int fullCount = 0;
-      error.head(3) << position - position_d;
+      Eigen::Vector3d track = position_d;
+      // track(1) = track(1) +  0.1 * (1 - cos(fullCount * 2 * M_PI / 4000.0));
+      error.head(3) << position - track;
       
       // orientation error
       // "difference" quaternion
@@ -181,9 +183,8 @@ int main(int argc, char** argv) {
 
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
-
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
-      ddx_d(1) = 1.0 * cos(fullCount * 2 * M_PI / 4000.0);
+      // ddx_d(1) = 1.0 * cos(fullCount * 2 * M_PI / 4000.0);
       ddx_d.tail(3).setZero();
       
       // compute control
@@ -193,14 +194,14 @@ int main(int argc, char** argv) {
 
       // MR 6.7 weighted pseudoinverse
       Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
-      joint_weights(0) = 0.25;
+      // joint_weights(0) = 0.1;
       Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
       Eigen::MatrixXd weighted_pseudo_inverse = W_inv.topLeftCorner(4,4) * jacobian.topRows(3).leftCols(4).transpose() * (jacobian.topRows(3).leftCols(4) * W_inv.topLeftCorner(4,4) * jacobian.topRows(3).leftCols(4).transpose()).inverse();
 
       // MR 11.66
       Eigen::VectorXd ddq_d(7);
       ddq_d.setZero();
-      ddq_d.head(4) << jacobian.topRows(3).leftCols(4).completeOrthogonalDecomposition().pseudoInverse() * (ddx_d.head(3) - (djacobian.topRows(3).leftCols(4) * dq.head(4)));
+      ddq_d.head(4) << weighted_pseudo_inverse * (ddx_d.head(3) - (djacobian.topRows(3).leftCols(4) * dq.head(4)));
       // MR 8.1
       tau_task.head(4) << mass.topLeftCorner(4,4) * ddq_d.head(4);
 
@@ -237,9 +238,9 @@ int main(int argc, char** argv) {
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
-        new_package.translation_d = Eigen::Vector3d(predicted);
+        new_package.translation_d = Eigen::Vector3d::Zero();
         new_package.velocity = (jacobian * dq).head(3).reshaped();
-        new_package.torques_d = tau_d;
+        new_package.torques_d = tau_task;
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
