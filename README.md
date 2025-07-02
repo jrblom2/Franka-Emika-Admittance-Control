@@ -3,7 +3,8 @@ This repository contains code to perform basic admitance control using a Franka 
 
 ROS2 is used for the transfer of data out of the libFranka control loop to other devices on the network.
 
-![Admittance-control drawio](https://github.com/user-attachments/assets/495c2b81-609f-4b9e-ae93-49608633af93)
+![admittance](https://github.com/user-attachments/assets/bbabe633-e7fa-4fd6-9df8-55e839cbd5c3)
+
 
 ## Setup
 A lot of assumptions about system configuration are currently hardcoded in this project.
