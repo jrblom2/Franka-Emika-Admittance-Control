@@ -211,6 +211,7 @@ int main(int argc, char** argv) {
       
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
+      static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
       // MR 11.66
       Eigen::VectorXd ddq_d(7);
@@ -220,6 +221,12 @@ int main(int argc, char** argv) {
 
       // add all control elements together
       tau_d << tau_task + coriolis;
+      double max_torque_accel = 80.0 / 1000;
+      // if torque acceleration exceeds 80/s^2, throttle to 80.
+      for (int i = 0; i < tau_d.size(); ++i) {
+        tau_d(i) = std::clamp(tau_d(i), last_task(i) - max_torque_accel, last_task(i) + max_torque_accel);
+      }
+      last_task = tau_d;
 
       // output format
       std::array<double, 7> tau_d_array;
