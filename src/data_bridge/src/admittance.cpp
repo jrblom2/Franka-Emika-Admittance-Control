@@ -51,10 +51,10 @@ int main(int argc, char** argv) {
   std::string ros2_publish{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{5.0};
-  const double rotational_stiffness{5.0};
-  const double translational_damping_factor{2.0};
-  const double rotational_damping_factor{2.0};
+  const double translational_stiffness{0.0};
+  const double rotational_stiffness{0.0};
+  const double translational_damping_factor{0.0};
+  const double rotational_damping_factor{0.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -67,11 +67,11 @@ int main(int argc, char** argv) {
   
   //mass matrix of robot is about as follows:
   virtual_mass.setZero();
-  virtual_mass(0,0) = 1.8;
-  virtual_mass(1,1) = 1.8;
+  virtual_mass(0,0) = 1.5;
+  virtual_mass(1,1) = 1.5;
   virtual_mass(2,2) = 2;
-  virtual_mass(3,3) = 1;
-  virtual_mass(4,4) = 1;
+  virtual_mass(3,3) = 0.7;
+  virtual_mass(4,4) = 0.7;
   virtual_mass(5,5) = 0.7;
 
   // phantom force for demo testing
@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Matrix<double, 6, 1>> expected_accel;
     trajectory_6d sim_traj = spring_simulate_6d(
       x0_vec,
-      stiffness,
+      Eigen::Matrix<double, 6, 6>::Zero(),
       damping,
       virtual_mass,
       phantom_fext,
@@ -226,7 +226,7 @@ int main(int argc, char** argv) {
 
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
-      fext = phantom_fext;
+      // fext = phantom_fext;
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
       
       // compute control

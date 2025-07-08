@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 
   // Compliance parameters
   const double translational_stiffness{50.0};
-  const double rotational_stiffness{50.0};
+  const double rotational_stiffness{30.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);

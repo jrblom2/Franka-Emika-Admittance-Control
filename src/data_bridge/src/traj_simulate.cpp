@@ -74,7 +74,6 @@ trajectory_6d spring_simulate_6d(
         // Compute acceleration at current state
         Eigen::Matrix<double, 6, 1> set_point = set_point_func(t);
         a = m.inverse() * (f_ext - (damping * v) - (stiffness * (x - set_point)));
-        std::cout << a << std::endl;
         // Euler integration step
         v += dt * a;
         x += dt * v;
