@@ -1,0 +1,5 @@
+Mass = 0.25 for translation, Identity for rotation
+Stiffness = 100 for translation, 50 for rotation
+Damping = 2.5 for translation, 1.0 for rotation
+Control = disjointed
+Track = sinusoid wave between 0.0 - 0.2 over four seconds.

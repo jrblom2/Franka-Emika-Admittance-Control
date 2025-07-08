@@ -30,7 +30,6 @@ trajectory spring_simulate(
         // Compute acceleration at current state
         Eigen::Vector3d set_point = set_point_func(t);
         Eigen::Vector3d a = m.inverse() * (f_ext - (c * v) - (k * (x - set_point)));
-        std::cout << "a " << a(1) << std::endl;
 
         // Euler integration step
         v += dt * a;
