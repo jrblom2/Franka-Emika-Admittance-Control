@@ -55,7 +55,6 @@ int main(int argc, char** argv) {
   const double rotational_stiffness{100.0};
   const double translational_damping_factor{2.0};
   const double rotational_damping_factor{1.0};
-  const double virtual_mass_scaling{1.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -74,7 +73,6 @@ int main(int argc, char** argv) {
   virtual_mass(3,3) = 0.05;
   virtual_mass(4,4) = 0.05;
   virtual_mass(5,5) = 0.05;
-  virtual_mass = virtual_mass * virtual_mass_scaling;
 
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;

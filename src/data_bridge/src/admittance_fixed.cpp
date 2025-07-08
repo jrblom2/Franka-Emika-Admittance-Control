@@ -44,16 +44,16 @@ int main(int argc, char** argv) {
   std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed
   if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << " <publish?>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << " <publish?>"<< std::endl;
     return -1;
   }
 
   std::string ros2_publish{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{80.0};
-  const double rotational_stiffness{40.0};
-  const double translational_damping_factor{2.5};
+  const double translational_stiffness{50.0};
+  const double rotational_stiffness{50.0};
+  const double translational_damping_factor{0.0};
   const double rotational_damping_factor{2.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
@@ -67,12 +67,37 @@ int main(int argc, char** argv) {
   
   //mass matrix of robot is about as follows:
   virtual_mass.setZero();
-  virtual_mass(0,0) = 0.25;
-  virtual_mass(1,1) = 0.25;
-  virtual_mass(2,2) = 0.25;
-  virtual_mass(3,3) = 0.01;
-  virtual_mass(4,4) = 0.01;
-  virtual_mass(5,5) = 0.1;
+  virtual_mass(0,0) = 2;
+  virtual_mass(1,1) = 2;
+  virtual_mass(2,2) = 2;
+  virtual_mass(3,3) = 1;
+  virtual_mass(4,4) = 1;
+  virtual_mass(5,5) = 1;
+
+  // phantom force for demo testing
+  // Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
+
+  //connect to sensor
+  net_ft_driver::ft_info input;
+  input.ip_address = "192.168.18.12";
+  input.sensor_type = "ati_axia";
+  input.rdt_sampling_rate = 1000;
+  input.use_biasing = "true";
+  input.internal_filter_rate = 0;
+
+  Eigen::Matrix<double, 3, 3> sensor_rotation;
+  //45 degrees clockwise
+  sensor_rotation << std::cos(M_PI_4), -std::sin(M_PI_4), 0,
+                      std::sin(M_PI_4), std::cos(M_PI_4), 0,
+                      0,                0,                1;
+  
+  Eigen::MatrixXd sensor_adjoint(6, 6);
+  sensor_adjoint.setZero();
+  sensor_adjoint.topLeftCorner(3, 3) << sensor_rotation;
+  sensor_adjoint.bottomRightCorner(3,3) << sensor_rotation;
+
+  net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
+  std::cout << "Sensor started." << std::endl;
 
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
@@ -82,7 +107,7 @@ int main(int argc, char** argv) {
   try {
     // connect to robot
     franka::Robot robot(argv[1]);
-    setDefaultBehavior(robot);
+    setDefaultBehavior(robot, 0.80);
 
     // First move the robot to a suitable joint configuration
     std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};
@@ -101,25 +126,6 @@ int main(int argc, char** argv) {
     Eigen::Vector3d position_d(initial_transform.translation());
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
 
-    auto set_point_func = [&](double t) -> Eigen::Vector3d {
-      return Eigen::Vector3d(position_d(0) + 0.1 * (1.0 - std::cos(t  * 2 * M_PI / 4.0)), position_d(1) + 0.1 * (1.0 - std::cos(t  * 2 * M_PI / 4.0)), position_d(2));
-    };
-  
-    std::vector<Eigen::Vector3d> expected_pos;
-    std::vector<Eigen::Vector3d> expected_vel;
-    std::vector<Eigen::Vector3d> expected_accel;
-    trajectory sim_traj = spring_simulate(
-      Eigen::Vector3d(position_d),
-      translational_stiffness,
-      translational_damping_factor * sqrt(translational_stiffness),
-      virtual_mass.topLeftCorner(3,3),
-      Eigen::Vector3d::Zero(),
-      set_point_func);
-
-    expected_pos = sim_traj.position;
-    expected_vel = sim_traj.velocity;
-    expected_accel = sim_traj.acceleration;
-
     // set collision behavior
     robot.setCollisionBehavior({{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
                                {{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
@@ -136,6 +142,10 @@ int main(int argc, char** argv) {
       std::array<double, 42> jacobian_array =
           model.zeroJacobian(franka::Frame::kEndEffector, robot_state);
       std::array<double, 49> mass_array = model.mass(robot_state);
+                      
+      // update sensor data
+      sensor.read();
+      std::array<double, 6> ft_reading = sensor.ft_sensor_measurements_;
 
       // convert to Eigen
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
@@ -146,10 +156,20 @@ int main(int argc, char** argv) {
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J(robot_state.tau_J.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J_d(robot_state.tau_J_d.data());
-      Eigen::Matrix<double, 6, 1> fext;
+      Eigen::Map<Eigen::Matrix<double, 6, 1>> fext(ft_reading.data());
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
+
+      // TODO wrench translations should all be part of the adjoint
+      // translate wrench from FT sensor as wrench in EE frame. MR 3.98
+      fext = sensor_adjoint.transpose() * fext;
+      // swap sign for gravity
+      fext(2) = -fext(2);
+      // swap sign for x-axis
+      fext(0) = -fext(0);
+      // torque in Z and X already resist user, invert Y to also resist user
+      fext(4) = -fext(4);
       
       // static, set initial to current jacobian. Double check this.
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
@@ -168,11 +188,7 @@ int main(int argc, char** argv) {
       // compute error to desired equilibrium pose
       // position error
       Eigen::Matrix<double, 6, 1> error;
-      static int fullCount = 0;
-      Eigen::Vector3d track = position_d;
-      track(1) = track(1) +  0.1 * (1 - cos(fullCount * 2 * M_PI / 4000.0));
-      track(0) = track(0) +  0.1 * (1 - cos(fullCount * 2 * M_PI / 4000.0));
-      error.head(3) << position - track;
+      error.head(3).setZero();
       
       // orientation error
       // "difference" quaternion
@@ -188,28 +204,18 @@ int main(int argc, char** argv) {
 
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
+
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
       
       // compute control
-      Eigen::VectorXd tau_task(7), tau_d(7);
-
+      Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
       static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
-      // MR 6.7 weighted pseudoinverse
-      Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
-      // joint_weights(0) = 0.1;
-      Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
-      Eigen::MatrixXd weighted_pseudo_inverse_translation = W_inv.topLeftCorner(4,4) * jacobian.topRows(3).leftCols(4).transpose() * (jacobian.topRows(3).leftCols(4) * W_inv.topLeftCorner(4,4) * jacobian.topRows(3).leftCols(4).transpose()).inverse();
-      Eigen::MatrixXd weighted_pseudo_inverse_rotation = W_inv.bottomRightCorner(3,3) * jacobian.bottomRows(3).rightCols(3).transpose() * (jacobian.bottomRows(3).rightCols(3) * W_inv.bottomRightCorner(3,3) * jacobian.bottomRows(3).rightCols(3).transpose()).inverse();
       // MR 11.66
       Eigen::VectorXd ddq_d(7);
-      ddq_d.setZero();
-      ddq_d.head(4) << weighted_pseudo_inverse_translation * (ddx_d.head(3) - (djacobian.topRows(3).leftCols(4) * dq.head(4)));
-      ddq_d.tail(3) << weighted_pseudo_inverse_rotation * (ddx_d.tail(3) - (djacobian.bottomRows(3).rightCols(3) * dq.tail(3)));
-
-      // MR 8.1, control orientation with just last three joints
-      tau_task.head(4) << mass.topLeftCorner(4,4) * ddq_d.head(4);
-      tau_task.tail(3) << mass.bottomRightCorner(3,3) * ddq_d.tail(3);
+      ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
+      // MR 8.1
+      tau_task << mass * ddq_d;
 
       // add all control elements together
       tau_d << tau_task + coriolis;
@@ -226,13 +232,11 @@ int main(int argc, char** argv) {
       franka::Torques torques = tau_d_array;
 
       // publish results
+      static int fullCount = 0;
       static int count = 0;
       count++;
       static Eigen::Vector3d predicted = position;
 
-      if (expected_pos.size() > 0 && fullCount < (int)expected_pos.size()) {
-        predicted = expected_pos[fullCount];
-      }
       fullCount++;
 
       if (count == 10) {
@@ -243,12 +247,11 @@ int main(int argc, char** argv) {
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted);
         new_package.velocity = (jacobian * dq).head(3).reshaped();
-        new_package.torques_d = tau_task;
+        new_package.torques_d = tau_d;
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
         new_package.ddq_d = ddq_d;
-        new_package.dq = dq;
         if (ros2_publish == "TRUE") {
           transfer_package.Produce(std::move(new_package));
         }

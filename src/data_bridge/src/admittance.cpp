@@ -51,11 +51,10 @@ int main(int argc, char** argv) {
   std::string ros2_publish{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{15.0};
-  const double rotational_stiffness{50.0};
+  const double translational_stiffness{0.0};
+  const double rotational_stiffness{0.0};
   const double translational_damping_factor{0.0};
-  const double rotational_damping_factor{2.0};
-  const double virtual_mass_scaling{1.0};
+  const double rotational_damping_factor{0.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -68,16 +67,15 @@ int main(int argc, char** argv) {
   
   //mass matrix of robot is about as follows:
   virtual_mass.setZero();
-  virtual_mass(0,0) = 11;
-  virtual_mass(1,1) = 4;
-  virtual_mass(2,2) = 5;
+  virtual_mass(0,0) = 1.8;
+  virtual_mass(1,1) = 1.8;
+  virtual_mass(2,2) = 2;
   virtual_mass(3,3) = 1;
   virtual_mass(4,4) = 1;
-  virtual_mass(5,5) = 1;
-  virtual_mass = virtual_mass * virtual_mass_scaling;
+  virtual_mass(5,5) = 0.7;
 
   // phantom force for demo testing
-  // Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
+  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 0.0, 0.1, 0.0, 0.0, 0.0};
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -171,7 +169,8 @@ int main(int argc, char** argv) {
       // swap sign for x-axis
       fext(0) = -fext(0);
       // torque in Z and X already resist user, invert Y to also resist user
-      fext(4) = -fext(4);
+      fext(5) = -fext(5);
+      fext(3) = -fext(3);
       
       // static, set initial to current jacobian. Double check this.
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
@@ -206,7 +205,7 @@ int main(int argc, char** argv) {
 
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
-
+      // fext = phantom_fext;
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
       
       // compute control
