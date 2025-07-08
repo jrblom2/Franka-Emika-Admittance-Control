@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
       Eigen::Vector3d::Zero(),
       translational_stiffness,
       translational_damping_factor * sqrt(translational_stiffness),
-      virtual_mass.diagonal().head<3>(),
+      virtual_mass.topLeftCorner(3,3),
       Eigen::Vector3d::Zero(),
       set_point_func);
 

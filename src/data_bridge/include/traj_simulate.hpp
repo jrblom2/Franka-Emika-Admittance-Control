@@ -23,7 +23,7 @@ trajectory spring_simulate(
     const Eigen::Vector3d& x0_vec,
     double k,
     double c,
-    const Eigen::Vector3d& m,
+    const Eigen::Matrix3d& m,
     const Eigen::Vector3d& f_ext,
     const std::function<Eigen::Vector3d(double)>& set_point_func);
 
