@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <eigen3/Eigen/Dense>
+#include <iostream>
 
 struct trajectory {
     std::vector<Eigen::Vector3d> position;
@@ -18,6 +19,12 @@ struct trajectory {
 //
 // Returns:
 // - A set of vectors containing position, velocity, and acceleration over time
-trajectory spring_simulate(const Eigen::Vector3d& x0_vec, double k, double c, const Eigen::Vector3d& m, const Eigen::Vector3d& f_ext);
+trajectory spring_simulate(
+    const Eigen::Vector3d& x0_vec,
+    double k,
+    double c,
+    const Eigen::Vector3d& m,
+    const Eigen::Vector3d& f_ext,
+    const std::function<Eigen::Vector3d(double)>& set_point_func);
 
 trajectory sin_simulate(const Eigen::Vector3d& x0_vec, const Eigen::Vector3d& v0_vec);

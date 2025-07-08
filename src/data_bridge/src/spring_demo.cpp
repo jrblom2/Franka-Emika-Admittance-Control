@@ -43,18 +43,17 @@ void signal_handler(int signal) {
 int main(int argc, char** argv) {
   std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed
-  if (argc != 4) {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" <<  " <distance>" << " <publish?>" << std::endl;
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << " <publish?>" << std::endl;
     return -1;
   }
 
-  std::string start_distance{argv[2]};
-  std::string ros2_publish{argv[3]};
+  std::string ros2_publish{argv[2]};
 
   // Compliance parameters
   const double translational_stiffness{50.0};
   const double rotational_stiffness{50.0};
-  const double translational_damping_factor{0.0};
+  const double translational_damping_factor{2.0};
   const double rotational_damping_factor{2.0};
   const double virtual_mass_scaling{1.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
@@ -104,14 +103,21 @@ int main(int argc, char** argv) {
     Eigen::Vector3d position_d(initial_transform.translation());
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
 
-    // if this is a demo, move to offset position and simulate expected movement
+    auto set_point_func = [](double t) -> Eigen::Vector3d {
+      return Eigen::Vector3d(0.0, 0.1 * (1.0 - std::cos(t  * 2 * M_PI / 4.0)), 0.0);
+    };
+  
     std::vector<Eigen::Vector3d> expected_pos;
     std::vector<Eigen::Vector3d> expected_vel;
     std::vector<Eigen::Vector3d> expected_accel;
-    trajectory sim_traj = sin_simulate(
-      position_d,
-      Eigen::Vector3d::Zero()
-    );
+    trajectory sim_traj = spring_simulate(
+      Eigen::Vector3d::Zero(),
+      translational_stiffness,
+      translational_damping_factor * sqrt(translational_stiffness),
+      virtual_mass.diagonal().head<3>(),
+      Eigen::Vector3d::Zero(),
+      set_point_func);
+
     expected_pos = sim_traj.position;
     expected_vel = sim_traj.velocity;
     expected_accel = sim_traj.acceleration;
@@ -166,7 +172,7 @@ int main(int argc, char** argv) {
       Eigen::Matrix<double, 6, 1> error;
       static int fullCount = 0;
       Eigen::Vector3d track = position_d;
-      // track(1) = track(1) +  0.1 * (1 - cos(fullCount * 2 * M_PI / 4000.0));
+      track(1) = track(1) +  0.1 * (1 - cos(fullCount * 2 * M_PI / 4000.0));
       error.head(3) << position - track;
       
       // orientation error
@@ -184,7 +190,6 @@ int main(int argc, char** argv) {
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
-      // ddx_d(1) = 1.0 * cos(fullCount * 2 * M_PI / 4000.0);
       ddx_d.tail(3).setZero();
       
       // compute control
@@ -238,7 +243,7 @@ int main(int argc, char** argv) {
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
-        new_package.translation_d = Eigen::Vector3d::Zero();
+        new_package.translation_d = Eigen::Vector3d(predicted);
         new_package.velocity = (jacobian * dq).head(3).reshaped();
         new_package.torques_d = tau_task;
         new_package.torques_o = tau_J_d.reshaped();
