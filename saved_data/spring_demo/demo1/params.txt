@@ -1,0 +1,5 @@
+Mass = Identity
+Stiffness = 50 for both
+Damping = 2 for both
+Control = disjointed
+Track = sinusoid wave between 0.0 - 0.2 over four seconds.

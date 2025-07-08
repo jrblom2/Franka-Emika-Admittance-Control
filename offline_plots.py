@@ -18,7 +18,7 @@ sampling_rate = 100
 
 
 # Generic single file plotter
-def plot_data(file_name, labels, ylabel, num_columns):
+def plot_data(file_name, labels, ylabel, num_columns, y_lim_min=None, y_lim_max=None):
     df = pd.read_csv(os.path.join(data_dir, file_name + '.csv'), header=None)
     time = df.index / sampling_rate
 
@@ -28,6 +28,7 @@ def plot_data(file_name, labels, ylabel, num_columns):
     plt.title(f'Plot for {file_name}')
     plt.xlabel('Time (s)')
     plt.ylabel(ylabel)
+    plt.ylim((y_lim_min, y_lim_max))
     plt.legend()
     plt.grid(True)
     plt.savefig(os.path.join(output_dir, f'{file_name}.png'))
@@ -50,6 +51,7 @@ def plot_comparison(file1, file2, labels, ylabel, title, suptitle=None):
         ax.set_title(f'{labels[i]} vs Desired')
         ax.set_xlabel('Time (s)')
         ax.set_ylabel(ylabel)
+        ax.set_ylim(0, 1)
         ax.grid(True)
         ax.legend()
 
@@ -116,6 +118,7 @@ def plot_joints(file, labels, units):
 plot_data('actual_wrench', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'N', 6)
 plot_data('velocity', ['X', 'Y', 'Z'], 'M/S', 3)
 plot_data('desired_accel', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'M/S²', 6)
+plot_data('orientation_error', ['X', 'Y', 'Z'], 'R', 3, -1, 1)
 
 plot_comparison('translation', 'translation_d', ['X', 'Y', 'Z'], 'M', 'translation', suptitle='Plot for translation')
 plot_torques('torques_d', 'torques_g', [f'Joint {i+1}' for i in range(7)])
