@@ -44,6 +44,50 @@ trajectory spring_simulate(
     return {positions, velocities, accelerations};
 }
 
+trajectory_6d spring_simulate_6d(
+    const Eigen::Matrix<double, 6, 1>& x0_vec,         // x y z roll pitch yaw
+    const Eigen::Matrix<double, 6, 6>& stiffness,
+    const Eigen::Matrix<double, 6, 6>& damping,
+    const Eigen::Matrix<double, 6, 6>& m,               // 6x6 mass/inertia matrix
+    const Eigen::Matrix<double, 6, 1>& f_ext,           // external force + torque
+    const std::function<Eigen::Matrix<double, 6, 1>(double)>& set_point_func)
+{
+    double dt = 0.001;
+    double T = 20.0;
+    int n_steps = static_cast<int>(T / dt);
+
+    std::vector<Eigen::Matrix<double, 6, 1>> positions(n_steps);
+    std::vector<Eigen::Matrix<double, 6, 1>> velocities(n_steps);
+    std::vector<Eigen::Matrix<double, 6, 1>> accelerations(n_steps);
+
+    Eigen::Matrix<double, 6, 1> x = x0_vec;
+    Eigen::Matrix<double, 6, 1> v = Eigen::Matrix<double, 6, 1>::Zero();
+    Eigen::Matrix<double, 6, 1> a = Eigen::Matrix<double, 6, 1>::Zero();
+
+    positions[0] = x;
+    velocities[0] = v;
+    accelerations[0] = a;
+
+    for (int i = 1; i < n_steps; ++i) {
+        double t = i * dt;
+
+        // Compute acceleration at current state
+        Eigen::Matrix<double, 6, 1> set_point = set_point_func(t);
+        a = m.inverse() * (f_ext - (damping * v) - (stiffness * (x - set_point)));
+        std::cout << a << std::endl;
+        // Euler integration step
+        v += dt * a;
+        x += dt * v;
+
+        // Store results
+        positions[i] = x;
+        velocities[i] = v;
+        accelerations[i] = a;
+    }
+
+    return {positions, velocities, accelerations};
+}
+
 trajectory sin_simulate(const Eigen::Vector3d& x0_vec, const Eigen::Vector3d& v0_vec) {
     double dt = 0.001;
     double T = 20.0;

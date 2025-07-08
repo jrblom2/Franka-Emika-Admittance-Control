@@ -51,10 +51,10 @@ int main(int argc, char** argv) {
   std::string ros2_publish{argv[2]};
 
   // Compliance parameters
-  const double translational_stiffness{0.0};
-  const double rotational_stiffness{0.0};
-  const double translational_damping_factor{0.0};
-  const double rotational_damping_factor{0.0};
+  const double translational_stiffness{5.0};
+  const double rotational_stiffness{5.0};
+  const double translational_damping_factor{2.0};
+  const double rotational_damping_factor{2.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
   virtual_mass(5,5) = 0.7;
 
   // phantom force for demo testing
-  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 0.0, 0.1, 0.0, 0.0, 0.0};
+  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 0.0, 2.0, 0.0, 0.0, 0.0};
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -125,6 +125,27 @@ int main(int argc, char** argv) {
     Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
     Eigen::Vector3d position_d(initial_transform.translation());
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
+
+    auto set_point_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
+      return Eigen::Matrix<double, 6, 1>::Zero();
+    };
+    Eigen::Matrix<double, 6, 1> x0_vec;
+    x0_vec << position_d, 0.0, 0.0, 0.0;
+
+    std::vector<Eigen::Matrix<double, 6, 1>> expected_pos;
+    std::vector<Eigen::Matrix<double, 6, 1>> expected_vel;
+    std::vector<Eigen::Matrix<double, 6, 1>> expected_accel;
+    trajectory_6d sim_traj = spring_simulate_6d(
+      x0_vec,
+      stiffness,
+      damping,
+      virtual_mass,
+      phantom_fext,
+      set_point_func);
+
+    expected_pos = sim_traj.position;
+    expected_vel = sim_traj.velocity;
+    expected_accel = sim_traj.acceleration;
 
     // set collision behavior
     robot.setCollisionBehavior({{100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0}},
@@ -205,7 +226,7 @@ int main(int argc, char** argv) {
 
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
-      // fext = phantom_fext;
+      fext = phantom_fext;
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
       
       // compute control
@@ -236,23 +257,28 @@ int main(int argc, char** argv) {
       static int fullCount = 0;
       static int count = 0;
       count++;
-      static Eigen::Vector3d predicted = position;
+      static Eigen::Matrix<double, 6, 1> predicted;
+      predicted << position, error.tail(3); 
 
+      if (expected_pos.size() > 0 && fullCount < (int)expected_pos.size()) {
+        predicted = expected_pos[fullCount];
+      }
       fullCount++;
 
       if (count == 10) {
         queue_package new_package;
         new_package.desired_accel = Eigen::Matrix<double, 6, 1>(ddx_d);
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);
-        new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
+        new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3) - predicted.tail(3));
         new_package.translation = Eigen::Vector3d(position);
-        new_package.translation_d = Eigen::Vector3d(predicted);
+        new_package.translation_d = Eigen::Vector3d(predicted.head(3));
         new_package.velocity = (jacobian * dq).head(3).reshaped();
         new_package.torques_d = tau_d;
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
         new_package.ddq_d = ddq_d;
+        new_package.dq = dq;
         if (ros2_publish == "TRUE") {
           transfer_package.Produce(std::move(new_package));
         }
