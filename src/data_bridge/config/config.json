@@ -1,0 +1,30 @@
+{
+    "admittance": {
+        "translation_stiffness": 0.0,
+        "translation_damping": 0.0,
+        "rotation_stiffness": 0.0,
+        "rotation_damping": 0.0,
+        "mass": {
+            "x": 1.5,
+            "y": 1.5,
+            "z": 2.0,
+            "roll": 0.7,
+            "pitch": 0.7,
+            "yaw": 0.7
+        }
+    },
+    "admittance_fixed": {
+        "translation_stiffness": 50.0,
+        "translation_damping": 30.0,
+        "rotation_stiffness": 0.0,
+        "rotation_damping": 2.0,
+        "mass": {
+            "x": 2.2,
+            "y": 1.8,
+            "z": 1.5,
+            "roll": 1.0,
+            "pitch": 1.0,
+            "yaw": 1.0
+        }
+    }
+}

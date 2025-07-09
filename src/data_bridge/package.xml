@@ -8,6 +8,8 @@
   <license>Apache-2.0</license>
 
   <depend>data_interfaces</depend>
+  <build_depend>ament_index_cpp</build_depend>
+  <exec_depend>ament_index_cpp</exec_depend>
   
   <buildtool_depend>ament_cmake</buildtool_depend>
 

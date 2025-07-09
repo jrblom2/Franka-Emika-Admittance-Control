@@ -11,6 +11,7 @@ find_package(Franka REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(data_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 # build ft sensor
 add_subdirectory(src/net_ft)
@@ -26,10 +27,16 @@ target_include_directories(utilities PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 
+install(
+  DIRECTORY config/
+  DESTINATION share/${PROJECT_NAME}/config
+)
+
 ament_target_dependencies(utilities
   Franka
   rclcpp
   data_interfaces
+  ament_index_cpp
 )
 
 set(EXAMPLES

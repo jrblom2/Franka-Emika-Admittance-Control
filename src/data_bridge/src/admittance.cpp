@@ -8,6 +8,7 @@
 #include <string>
 #include <chrono>
 #include <csignal>
+#include <fstream>
 
 #include <eigen3/Eigen/Dense>
 
@@ -16,12 +17,17 @@
 #include <franka/model.h>
 #include <franka/robot.h>
 
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
 #include "examples_common.h"
 #include "net_ft/hardware_interface.hpp"
 #include "SafeQueue.hpp"
+#include "json.hpp"
 #include "traj_simulate.hpp"
 #include "minimal_publisher.hpp"
 #include "data_dumper.hpp"
+
+using json = nlohmann::json;
 
 volatile bool robot_stop = false; // Global flag
 
@@ -47,11 +53,16 @@ int main(int argc, char** argv) {
     std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << " <publish?>"<< std::endl;
     return -1;
   }
-
   std::string ros2_publish{argv[2]};
 
+  std::string package_share_dir = ament_index_cpp::get_package_share_directory("data_bridge");
+  std::string config_path = package_share_dir + "/config/config.json";
+  std::ifstream f(config_path);
+  
+  json config = json::parse(f);
+
   // Compliance parameters
-  const double translational_stiffness{0.0};
+  const double translational_stiffness{config["stiffness"]};
   const double rotational_stiffness{0.0};
   const double translational_damping_factor{0.0};
   const double rotational_damping_factor{0.0};
@@ -75,7 +86,7 @@ int main(int argc, char** argv) {
   virtual_mass(5,5) = 0.7;
 
   // phantom force for demo testing
-  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 0.0, 2.0, 0.0, 0.0, 0.0};
+  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
   //connect to sensor
   net_ft_driver::ft_info input;
