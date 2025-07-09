@@ -67,9 +67,9 @@ int main(int argc, char** argv) {
   
   //mass matrix of robot is about as follows:
   virtual_mass.setZero();
-  virtual_mass(0,0) = 2;
-  virtual_mass(1,1) = 2;
-  virtual_mass(2,2) = 2;
+  virtual_mass(0,0) = 2.2;
+  virtual_mass(1,1) = 1.8;
+  virtual_mass(2,2) = 1.5;
   virtual_mass(3,3) = 1;
   virtual_mass(4,4) = 1;
   virtual_mass(5,5) = 1;
