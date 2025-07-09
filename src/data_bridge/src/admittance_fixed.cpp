@@ -63,28 +63,22 @@ int main(int argc, char** argv) {
   json config = json::parse(f);
 
   // Compliance parameters
-  const double translational_stiffness{50.0};
-  const double rotational_stiffness{30.0};
-  const double translational_damping_factor{0.0};
-  const double rotational_damping_factor{2.0};
-  Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
+  const double translational_stiffness{config["admittance_fixed"]["translation_stiffness"]};
+  const double rotational_stiffness{config["admittance_fixed"]["rotation_stiffness"]};
+  const double translational_damping_factor{config["admittance_fixed"]["translation_damping"]};
+  const double rotational_damping_factor{config["admittance_fixed"]["rotation_damping"]};
+  Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
   stiffness.bottomRightCorner(3, 3) << rotational_stiffness * Eigen::MatrixXd::Identity(3, 3);
   damping.setZero();
-  damping.topLeftCorner(3, 3) << translational_damping_factor * sqrt(translational_stiffness) *
-                                     Eigen::MatrixXd::Identity(3, 3);
-  damping.bottomRightCorner(3, 3) << rotational_damping_factor * sqrt(rotational_stiffness) *
-                                         Eigen::MatrixXd::Identity(3, 3);
+  damping.topLeftCorner(3, 3) << translational_damping_factor * Eigen::MatrixXd::Identity(3, 3);
+  damping.bottomRightCorner(3, 3) << rotational_damping_factor * Eigen::MatrixXd::Identity(3, 3);
   
-  //mass matrix of robot is about as follows:
-  virtual_mass.setZero();
-  virtual_mass(0,0) = 2.2;
-  virtual_mass(1,1) = 1.8;
-  virtual_mass(2,2) = 1.5;
-  virtual_mass(3,3) = 1;
-  virtual_mass(4,4) = 1;
-  virtual_mass(5,5) = 1;
+  //mass matrix
+  std::vector<double> diag_values = config["admittance"]["mass"];
+  Eigen::VectorXd diag_vec = Eigen::Map<Eigen::VectorXd>(diag_values.data(), diag_values.size());
+  Eigen::MatrixXd virtual_mass = diag_vec.asDiagonal();
 
   // phantom force for demo testing
   // Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
@@ -200,7 +194,7 @@ int main(int argc, char** argv) {
       // compute error to desired equilibrium pose
       // position error
       Eigen::Matrix<double, 6, 1> error;
-      error.head(3).setZero();
+      error.head(3) << position - position_d;
       
       // orientation error
       // "difference" quaternion
@@ -223,9 +217,17 @@ int main(int argc, char** argv) {
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
       static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
+      // MR 6.7 weighted pseudoinverse
+      Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
+      // joint_weights(0) = 0.1;
+      
+      Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
+      Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
+      
       // MR 11.66
       Eigen::VectorXd ddq_d(7);
-      ddq_d << jacobian.completeOrthogonalDecomposition().pseudoInverse() * (ddx_d - (djacobian * dq));
+      ddq_d << weighted_pseudo_inverse * (ddx_d - (djacobian * dq));
+      
       // MR 8.1
       tau_task << mass * ddq_d;
 
