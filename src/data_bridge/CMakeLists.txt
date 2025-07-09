@@ -17,10 +17,10 @@ add_subdirectory(src/net_ft)
 
 # set up examples_utils library
 add_library(utilities STATIC
-  src/examples_common.cpp
-  src/traj_simulate.cpp
-  src/minimal_publisher.cpp
-  src/data_dumper.cpp
+  src/utils/examples_common.cpp
+  src/utils/traj_simulate.cpp
+  src/utils/minimal_publisher.cpp
+  src/utils/data_dumper.cpp
 )
 target_include_directories(utilities PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

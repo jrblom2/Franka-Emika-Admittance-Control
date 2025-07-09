@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
     Eigen::Vector3d position_d(initial_transform.translation());
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
 
-    auto set_point_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
+    auto set_point_func = [&](double) -> Eigen::Matrix<double, 6, 1> {
       return Eigen::Matrix<double, 6, 1>::Zero();
     };
     Eigen::Matrix<double, 6, 1> x0_vec;
