@@ -75,9 +75,14 @@ int main(int argc, char** argv) {
   damping.bottomRightCorner(3, 3) << rotational_damping_factor * Eigen::MatrixXd::Identity(3, 3);
   
   //mass matrix
-  std::vector<double> diag_values = config["admittance"]["mass"];
-  Eigen::VectorXd diag_vec = Eigen::Map<Eigen::VectorXd>(diag_values.data(), diag_values.size());
-  Eigen::MatrixXd virtual_mass = diag_vec.asDiagonal();
+  std::vector<double> mass_values = config["admittance"]["mass"];
+  Eigen::VectorXd mass_vec = Eigen::Map<Eigen::VectorXd>(mass_values.data(), mass_values.size());
+  Eigen::MatrixXd virtual_mass = mass_vec.asDiagonal();
+
+  //joint weights
+  std::vector<double> weight_values = config["admittance"]["joint_weight"];
+  Eigen::VectorXd joint_weights = Eigen::Map<Eigen::VectorXd>(weight_values.data(), weight_values.size());
+  Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
 
   // phantom force for demo testing
   Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -134,6 +139,16 @@ int main(int argc, char** argv) {
     auto set_point_func = [&](double) -> Eigen::Matrix<double, 6, 1> {
       return Eigen::Matrix<double, 6, 1>::Zero();
     };
+    auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
+      Eigen::Matrix<double, 6, 1> fext;
+      fext << 0.0,
+              (1.0 - std::cos(t  * 2 * M_PI / 4.0)),
+              0.0,
+              0.0,
+              0.0,
+              0.0;
+      return fext;
+    };
     Eigen::Matrix<double, 6, 1> x0_vec;
     x0_vec << position_d, 0.0, 0.0, 0.0;
 
@@ -145,7 +160,7 @@ int main(int argc, char** argv) {
       Eigen::Matrix<double, 6, 6>::Zero(),
       damping,
       virtual_mass,
-      phantom_fext,
+      fext_func,
       set_point_func);
 
     expected_pos = sim_traj.position;
@@ -194,7 +209,7 @@ int main(int argc, char** argv) {
       fext(2) = -fext(2);
       // swap sign for x-axis
       fext(0) = -fext(0);
-      // torque in Z and X already resist user, invert Y to also resist user
+      // invert Z and X torque from sensor frame to EE frame
       fext(5) = -fext(5);
       fext(3) = -fext(3);
       
@@ -229,9 +244,11 @@ int main(int argc, char** argv) {
       // Transform to base frame
       error.tail(3) << -transform.rotation() * error.tail(3);
 
+      static int fullCount = 0;
+
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
-      // fext = phantom_fext;
+      fext = fext_func(fullCount/1000.0);
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
       
       // compute control
@@ -239,9 +256,6 @@ int main(int argc, char** argv) {
       static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
       // MR 6.7 weighted pseudoinverse
-      Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
-      // joint_weights(0) = 0.1;
-      Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
       Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
       
       // MR 11.66
@@ -253,8 +267,9 @@ int main(int argc, char** argv) {
 
       // add all control elements together
       tau_d << tau_task + coriolis;
-      double max_torque_accel = 80.0 / 1000;
-      // if torque acceleration exceeds 80/s^2, throttle to 80.
+
+      //Spec sheet lists 1000/sec as maximum but in practice should be much lower for smooth human use.
+      double max_torque_accel = 100.0 / 1000;
       for (int i = 0; i < tau_d.size(); ++i) {
         tau_d(i) = std::clamp(tau_d(i), last_task(i) - max_torque_accel, last_task(i) + max_torque_accel);
       }
@@ -266,7 +281,6 @@ int main(int argc, char** argv) {
       franka::Torques torques = tau_d_array;
 
       // publish results
-      static int fullCount = 0;
       static int count = 0;
       count++;
       static Eigen::Matrix<double, 6, 1> predicted;

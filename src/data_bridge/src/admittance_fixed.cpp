@@ -80,6 +80,11 @@ int main(int argc, char** argv) {
   Eigen::VectorXd diag_vec = Eigen::Map<Eigen::VectorXd>(diag_values.data(), diag_values.size());
   Eigen::MatrixXd virtual_mass = diag_vec.asDiagonal();
 
+  //joint weights
+  std::vector<double> weight_values = config["admittance"]["mass"];
+  Eigen::VectorXd joint_weights = Eigen::Map<Eigen::VectorXd>(weight_values.data(), weight_values.size());
+  Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
+
   // phantom force for demo testing
   // Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
 
@@ -218,10 +223,6 @@ int main(int argc, char** argv) {
       static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
       // MR 6.7 weighted pseudoinverse
-      Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
-      // joint_weights(0) = 0.1;
-      
-      Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
       Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
       
       // MR 11.66
@@ -233,8 +234,9 @@ int main(int argc, char** argv) {
 
       // add all control elements together
       tau_d << tau_task + coriolis;
-      double max_torque_accel = 80.0 / 1000;
-      // if torque acceleration exceeds 80/s^2, throttle to 80.
+      
+      //Spec sheet lists 1000/sec as maximum but in practice should be much lower for smooth human use.
+      double max_torque_accel = 100.0 / 1000;
       for (int i = 0; i < tau_d.size(); ++i) {
         tau_d(i) = std::clamp(tau_d(i), last_task(i) - max_torque_accel, last_task(i) + max_torque_accel);
       }

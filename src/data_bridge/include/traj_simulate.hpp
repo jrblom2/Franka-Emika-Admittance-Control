@@ -38,7 +38,7 @@ trajectory_6d spring_simulate_6d(
     const Eigen::Matrix<double, 6, 6>& stiffness, 
     const Eigen::Matrix<double, 6, 6>& damping, 
     const Eigen::Matrix<double, 6, 6>& m,               // 6x6 mass/inertia matrix
-    const Eigen::Matrix<double, 6, 1>& f_ext,           // external force + torque
+    const std::function<Eigen::Matrix<double, 6, 1>(double)>& f_ext,           // external force + torque
     const std::function<Eigen::Matrix<double, 6, 1>(double)>& set_point_func);
 
 trajectory sin_simulate(const Eigen::Vector3d& x0_vec, const Eigen::Vector3d& v0_vec);

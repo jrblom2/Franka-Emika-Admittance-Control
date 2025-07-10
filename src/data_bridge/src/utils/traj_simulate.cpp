@@ -45,12 +45,12 @@ trajectory spring_simulate(
 }
 
 trajectory_6d spring_simulate_6d(
-    const Eigen::Matrix<double, 6, 1>& x0_vec,         // x y z roll pitch yaw
+    const Eigen::Matrix<double, 6, 1>& x0_vec,
     const Eigen::Matrix<double, 6, 6>& stiffness,
     const Eigen::Matrix<double, 6, 6>& damping,
-    const Eigen::Matrix<double, 6, 6>& m,               // 6x6 mass/inertia matrix
-    const Eigen::Matrix<double, 6, 1>& f_ext,           // external force + torque
-    const std::function<Eigen::Matrix<double, 6, 1>(double)>& set_point_func)
+    const Eigen::Matrix<double, 6, 6>& m,
+    const std::function<Eigen::Matrix<double, 6, 1>(double)>& f_ext,
+    const std::function<Eigen::Matrix<double, 6, 1>(double)>& set_point)
 {
     double dt = 0.001;
     double T = 20.0;
@@ -72,8 +72,7 @@ trajectory_6d spring_simulate_6d(
         double t = i * dt;
 
         // Compute acceleration at current state
-        Eigen::Matrix<double, 6, 1> set_point = set_point_func(t);
-        a = m.inverse() * (f_ext - (damping * v) - (stiffness * (x - set_point)));
+        a = m.inverse() * (f_ext(t) - (damping * v) - (stiffness * (x - set_point(t))));
         // Euler integration step
         v += dt * a;
         x += dt * v;
