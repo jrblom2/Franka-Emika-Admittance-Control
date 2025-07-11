@@ -4,8 +4,8 @@
         "translation_damping": 0.0,
         "rotation_stiffness": 0.0,
         "rotation_damping": 0.0,
-        "mass": [2.5, 2.5, 3.0, 2.0, 2.0, 2.0],
-        "joint_weight": [0.1, 0.1, 0.1, 0.1, 1.0, 1.0, 1.0]
+        "mass": [5.0, 5.0, 5.0, 2.0, 2.0, 2.0],
+        "joint_weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
     },
     "admittance_fixed": {
         "translation_stiffness": 0.0,

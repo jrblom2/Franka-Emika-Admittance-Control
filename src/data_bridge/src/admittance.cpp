@@ -84,9 +84,6 @@ int main(int argc, char** argv) {
   Eigen::VectorXd joint_weights = Eigen::Map<Eigen::VectorXd>(weight_values.data(), weight_values.size());
   Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
 
-  // phantom force for demo testing
-  Eigen::Matrix<double, 6, 1> phantom_fext = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-
   //connect to sensor
   net_ft_driver::ft_info input;
   input.ip_address = "192.168.18.12";
@@ -94,21 +91,29 @@ int main(int argc, char** argv) {
   input.rdt_sampling_rate = 1000;
   input.use_biasing = "true";
   input.internal_filter_rate = 0;
+  net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
+  std::cout << "Sensor started." << std::endl;
 
+  // setup sensor transform
   Eigen::Matrix<double, 3, 3> sensor_rotation;
-  //45 degrees clockwise
-  sensor_rotation << std::cos(M_PI_4), -std::sin(M_PI_4), 0,
-                      std::sin(M_PI_4), std::cos(M_PI_4), 0,
-                      0,                0,                1;
+  //90 degrees counter-clockwise (in sensor frame)
+  sensor_rotation <<  -std::cos(M_PI_4), -std::sin(M_PI_4), 0,
+                      -std::sin(M_PI_4), std::cos(M_PI_4), 0,
+                      0,                0,                -1;
+  
+  // shifted down in sensor frame (up to the user)
+  Eigen::Vector3d sensor_translation {0.0, 0.0, -0.0424};
+  Eigen::Matrix3d sensor_translation_skew;
+  sensor_translation_skew <<     0,                          -sensor_translation.z(),  sensor_translation.y(),
+                                 sensor_translation.z(),     0,                        -sensor_translation.x(),
+                                 -sensor_translation.y(),    sensor_translation.x(),   0;
   
   Eigen::MatrixXd sensor_adjoint(6, 6);
   sensor_adjoint.setZero();
   sensor_adjoint.topLeftCorner(3, 3) << sensor_rotation;
   sensor_adjoint.bottomRightCorner(3,3) << sensor_rotation;
-
-  net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
-  std::cout << "Sensor started." << std::endl;
-
+  sensor_adjoint.bottomLeftCorner(3,3) << sensor_translation_skew * sensor_rotation;
+  
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
   SafeQueue<queue_package> transfer_package;
@@ -140,14 +145,14 @@ int main(int argc, char** argv) {
       return Eigen::Matrix<double, 6, 1>::Zero();
     };
     auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
-      Eigen::Matrix<double, 6, 1> fext;
-      fext << 0.0,
-              (1.0 - std::cos(t  * 2 * M_PI / 4.0)),
+      Eigen::Matrix<double, 6, 1> fext_dummy;
+      fext_dummy << -2.0,
+              2.0,
               0.0,
               0.0,
               0.0,
               0.0;
-      return fext;
+      return fext_dummy;
     };
     Eigen::Matrix<double, 6, 1> x0_vec;
     x0_vec << position_d, 0.0, 0.0, 0.0;
@@ -188,6 +193,8 @@ int main(int argc, char** argv) {
       sensor.read();
       std::array<double, 6> ft_reading = sensor.ft_sensor_measurements_;
 
+      static int fullCount = 0;
+
       // convert to Eigen
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> coriolis(coriolis_array.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> gravity(gravity_array.data());
@@ -201,17 +208,10 @@ int main(int argc, char** argv) {
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
-
-      // TODO wrench translations should all be part of the adjoint
+      
       // translate wrench from FT sensor as wrench in EE frame. MR 3.98
+      // fext = fext_func(fullCount/1000.0);
       fext = sensor_adjoint.transpose() * fext;
-      // swap sign for gravity
-      fext(2) = -fext(2);
-      // swap sign for x-axis
-      fext(0) = -fext(0);
-      // invert Z and X torque from sensor frame to EE frame
-      fext(5) = -fext(5);
-      fext(3) = -fext(3);
       
       // static, set initial to current jacobian. Double check this.
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
@@ -244,13 +244,11 @@ int main(int argc, char** argv) {
       // Transform to base frame
       error.tail(3) << -transform.rotation() * error.tail(3);
 
-      static int fullCount = 0;
-
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
-      fext = fext_func(fullCount/1000.0);
+
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
-      
+
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
       static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
@@ -269,7 +267,7 @@ int main(int argc, char** argv) {
       tau_d << tau_task + coriolis;
 
       //Spec sheet lists 1000/sec as maximum but in practice should be much lower for smooth human use.
-      double max_torque_accel = 100.0 / 1000;
+      double max_torque_accel = 10.0 / 1000;
       for (int i = 0; i < tau_d.size(); ++i) {
         tau_d(i) = std::clamp(tau_d(i), last_task(i) - max_torque_accel, last_task(i) + max_torque_accel);
       }
@@ -295,7 +293,7 @@ int main(int argc, char** argv) {
         queue_package new_package;
         new_package.desired_accel = Eigen::Matrix<double, 6, 1>(ddx_d);
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);
-        new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3) - predicted.tail(3));
+        new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted.head(3));
         new_package.velocity = (jacobian * dq).head(3).reshaped();

@@ -95,20 +95,28 @@ int main(int argc, char** argv) {
   input.rdt_sampling_rate = 1000;
   input.use_biasing = "true";
   input.internal_filter_rate = 0;
+  net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
+  std::cout << "Sensor started." << std::endl;
 
+  // setup sensor transform
   Eigen::Matrix<double, 3, 3> sensor_rotation;
-  //45 degrees clockwise
-  sensor_rotation << std::cos(M_PI_4), -std::sin(M_PI_4), 0,
-                      std::sin(M_PI_4), std::cos(M_PI_4), 0,
-                      0,                0,                1;
+  //90 degrees counter-clockwise (in sensor frame)
+  sensor_rotation <<  -std::cos(M_PI_4), -std::sin(M_PI_4), 0,
+                      -std::sin(M_PI_4), std::cos(M_PI_4), 0,
+                      0,                0,                -1;
+  
+  // shifted down in sensor frame (up to the user)
+  Eigen::Vector3d sensor_translation {0.0, 0.0, -0.0424};
+  Eigen::Matrix3d sensor_translation_skew;
+  sensor_translation_skew <<     0,                          -sensor_translation.z(),  sensor_translation.y(),
+                                 sensor_translation.z(),     0,                        -sensor_translation.x(),
+                                 -sensor_translation.y(),    sensor_translation.x(),   0;
   
   Eigen::MatrixXd sensor_adjoint(6, 6);
   sensor_adjoint.setZero();
   sensor_adjoint.topLeftCorner(3, 3) << sensor_rotation;
   sensor_adjoint.bottomRightCorner(3,3) << sensor_rotation;
-
-  net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
-  std::cout << "Sensor started." << std::endl;
+  sensor_adjoint.bottomLeftCorner(3,3) << sensor_translation_skew * sensor_rotation;
 
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
@@ -172,15 +180,8 @@ int main(int argc, char** argv) {
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
 
-      // TODO wrench translations should all be part of the adjoint
       // translate wrench from FT sensor as wrench in EE frame. MR 3.98
       fext = sensor_adjoint.transpose() * fext;
-      // swap sign for gravity
-      fext(2) = -fext(2);
-      // swap sign for x-axis
-      fext(0) = -fext(0);
-      // torque in Z and X already resist user, invert Y to also resist user
-      fext(4) = -fext(4);
       
       // static, set initial to current jacobian. Double check this.
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
