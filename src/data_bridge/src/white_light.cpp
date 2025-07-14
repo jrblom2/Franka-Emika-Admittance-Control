@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
   try {
     // connect to robot
     franka::Robot robot(argv[1]);
-    setDefaultBehavior(robot);
+    setDefaultBehavior(robot, 0.80);
 
     // First move the robot to a suitable joint configuration
     std::array<double, 7> q_goal = {{0, -M_PI_4, 0, -3 * M_PI_4, 0, M_PI_2, M_PI_4}};

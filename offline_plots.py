@@ -45,7 +45,7 @@ def plot_data_with_error_from_zero(file_name, labels, ylabel, num_columns, y_lim
 
     # Plot all signals in the first subplot
     for i in range(num_columns):
-        axs[0].plot(time, df[i], label=labels[i])
+        axs[0].plot(time, df[i] * (180 / np.pi), label=labels[i])
     axs[0].set_title(f'{file_name} - Signals')
     axs[0].set_xlabel('Time (s)')
     axs[0].set_ylabel(ylabel)
@@ -98,7 +98,6 @@ def plot_comparison(file1, file2, labels, ylabel, title, suptitle=None):
         axs[0, i].set_title(f'{labels[i]} vs Desired')
         axs[0, i].set_xlabel('Time (s)')
         axs[0, i].set_ylabel(ylabel)
-        axs[0, i].set_ylim(0, 1)
         axs[0, i].grid(True)
         axs[0, i].legend()
 
@@ -189,9 +188,11 @@ def plot_joints(file, labels, units):
 plot_data('actual_wrench', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'N', 6)
 plot_data('velocity', ['X', 'Y', 'Z'], 'M/S', 3)
 plot_data('desired_accel', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'M/S²', 6)
-plot_data_with_error_from_zero('orientation_error', ['X', 'Y', 'Z'], 'R', 3, -1, 1)
+plot_data_with_error_from_zero('orientation_error', ['X', 'Y', 'Z'], 'Orientation Error (degrees)', 3)
 
-plot_comparison('translation', 'translation_d', ['X', 'Y', 'Z'], 'M', 'translation', suptitle='Plot for translation')
+plot_comparison(
+    'translation', 'translation_d', ['X', 'Y', 'Z'], 'Distance (m)', 'translation', suptitle='Plot for translation'
+)
 plot_torques('torques_d', 'torques_g', [f'Joint {i+1}' for i in range(7)])
 plot_joints('joints_accel_d', [f'Joint {i+1} Desired Accel' for i in range(7)], 'R/S^2')
 plot_joints('joints_vel', [f'Joint {i+1}' for i in range(7)], 'R/S')

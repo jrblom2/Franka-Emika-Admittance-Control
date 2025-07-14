@@ -38,6 +38,24 @@ void signal_handler(int signal) {
     }
 }
 
+std::vector<Eigen::Matrix<double, 6, 1>> load_csv(const std::string& filename) {
+        std::vector<Eigen::Matrix<double, 6, 1>> data;
+        std::ifstream file(filename);
+        std::string line;
+
+        while (std::getline(file, line)) {
+            std::stringstream ss(line);
+            Eigen::Matrix<double, 6, 1> row;
+            std::string cell;
+            int i = 0;
+            while (std::getline(ss, cell, ',') && i < 6) {
+                row(i++) = std::stod(cell);
+            }
+            if (i == 6) data.push_back(row);
+        }
+        return data;
+    }
+
 /**
  * @example cartesian_impedance_control.cpp
  * An example showing a simple cartesian impedance controller without inertia shaping
@@ -61,19 +79,16 @@ int main(int argc, char** argv) {
   
   json config = json::parse(f);
 
-  // Compliance parameters
-  const double translational_stiffness{config["admittance"]["translation_stiffness"]};
-  const double rotational_stiffness{config["admittance"]["rotation_stiffness"]};
-  const double translational_damping_factor{config["admittance"]["translation_damping"]};
-  const double rotational_damping_factor{config["admittance"]["rotation_damping"]};
-  Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
-  stiffness.setZero();
-  stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
-  stiffness.bottomRightCorner(3, 3) << rotational_stiffness * Eigen::MatrixXd::Identity(3, 3);
-  damping.setZero();
-  damping.topLeftCorner(3, 3) << translational_damping_factor * Eigen::MatrixXd::Identity(3, 3);
-  damping.bottomRightCorner(3, 3) << rotational_damping_factor * Eigen::MatrixXd::Identity(3, 3);
-  
+  //stiffness
+  std::vector<double> stiffness_values = config["admittance"]["stiffness"];
+  Eigen::VectorXd stiffness_vec = Eigen::Map<Eigen::VectorXd>(stiffness_values.data(), stiffness_values.size());
+  Eigen::MatrixXd stiffness = stiffness_vec.asDiagonal();
+
+  //damping
+  std::vector<double> damping_values = config["admittance"]["damping"];
+  Eigen::VectorXd damping_vec = Eigen::Map<Eigen::VectorXd>(damping_values.data(), damping_values.size());
+  Eigen::MatrixXd damping = damping_vec.asDiagonal();
+
   //mass matrix
   std::vector<double> mass_values = config["admittance"]["mass"];
   Eigen::VectorXd mass_vec = Eigen::Map<Eigen::VectorXd>(mass_values.data(), mass_values.size());
@@ -96,7 +111,7 @@ int main(int argc, char** argv) {
 
   // setup sensor transform
   Eigen::Matrix<double, 3, 3> sensor_rotation;
-  //90 degrees counter-clockwise (in sensor frame)
+  //rotated to align with the base frame in home position
   sensor_rotation <<  -std::cos(M_PI_4), -std::sin(M_PI_4), 0,
                       -std::sin(M_PI_4), std::cos(M_PI_4), 0,
                       0,                0,                -1;
@@ -140,30 +155,45 @@ int main(int argc, char** argv) {
     Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
     Eigen::Vector3d position_d(initial_transform.translation());
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
-
+    
     auto set_point_func = [&](double) -> Eigen::Matrix<double, 6, 1> {
-      return Eigen::Matrix<double, 6, 1>::Zero();
+      Eigen::Matrix<double, 6, 1> set {position_d(0), position_d(1), position_d(2), 0.0, 0.0, 0.0};
+      return set;
     };
+
+    std::vector<Eigen::Matrix<double, 6, 1>> fext_data = load_csv(package_share_dir + "/config/actual_wrench.csv");
     auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
-      Eigen::Matrix<double, 6, 1> fext_dummy;
-      fext_dummy << -2.0,
-              2.0,
+        // size_t index = static_cast<size_t>(t);
+        // index = index/10;
+        // if (index < fext_data.size()) {
+        //     return fext_data[index];
+        // } else {
+        //     return Eigen::Matrix<double, 6, 1>::Zero();
+        // }
+        double t_ramp = 0.1; // seconds
+        double ramp = std::min(1.0, t / t_ramp);
+        Eigen::Matrix<double, 6, 1> fext_dummy;
+        fext_dummy << 0.0,
+              2 * (std::sin(t  * 2 * M_PI / 4.0)),
               0.0,
               0.0,
               0.0,
               0.0;
-      return fext_dummy;
+        return fext_dummy;
+
     };
     Eigen::Matrix<double, 6, 1> x0_vec;
     x0_vec << position_d, 0.0, 0.0, 0.0;
 
+    Eigen::MatrixXd damping_sim = damping;
+    damping_sim(1,1) = 16.0;
     std::vector<Eigen::Matrix<double, 6, 1>> expected_pos;
     std::vector<Eigen::Matrix<double, 6, 1>> expected_vel;
     std::vector<Eigen::Matrix<double, 6, 1>> expected_accel;
     trajectory_6d sim_traj = spring_simulate_6d(
       x0_vec,
-      Eigen::Matrix<double, 6, 6>::Zero(),
-      damping,
+      stiffness,
+      damping_sim,
       virtual_mass,
       fext_func,
       set_point_func);
@@ -208,24 +238,30 @@ int main(int argc, char** argv) {
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
+
+      Eigen::Matrix<double, 6, 1> velocity = jacobian * dq;
       
-      // translate wrench from FT sensor as wrench in EE frame. MR 3.98
-      // fext = fext_func(fullCount/1000.0);
-      fext = sensor_adjoint.transpose() * fext;
-      
-      // static, set initial to current jacobian. Double check this.
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
+      static Eigen::Matrix<double, 6, 1> old_vel = velocity;
       
       Eigen::Matrix<double, 6, 7> djacobian;
+      Eigen::VectorXd acceleration;
       // arbitrary cutoff for no duration, expected duration is 0.001
       if (duration.toSec() < 0.00000001) {
         djacobian.setZero();
+        acceleration.setZero();
       } else {
         djacobian = (jacobian - old_jacobian)/duration.toSec();
+        acceleration = (velocity - old_vel)/duration.toSec();
       }
 
       // non static update
       old_jacobian = jacobian;
+      old_vel = velocity;
+
+      // translate wrench from FT sensor as wrench in EE frame. MR 3.98
+      fext = sensor_adjoint.transpose() * fext;
+      fext = fext_func(fullCount/1000.0);
 
       // compute error to desired equilibrium pose
       // position error
@@ -247,7 +283,7 @@ int main(int argc, char** argv) {
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
 
-      ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
+      ddx_d << virtual_mass.inverse() * (fext - (damping * velocity) - (stiffness * error));
 
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
@@ -296,7 +332,8 @@ int main(int argc, char** argv) {
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted.head(3));
-        new_package.velocity = (jacobian * dq).head(3).reshaped();
+        new_package.velocity = velocity.head(3).reshaped();
+        new_package.accel = acceleration;
         new_package.torques_d = tau_d;
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();

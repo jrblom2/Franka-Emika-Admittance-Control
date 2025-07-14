@@ -62,26 +62,23 @@ int main(int argc, char** argv) {
   
   json config = json::parse(f);
 
-  // Compliance parameters
-  const double translational_stiffness{config["admittance_fixed"]["translation_stiffness"]};
-  const double rotational_stiffness{config["admittance_fixed"]["rotation_stiffness"]};
-  const double translational_damping_factor{config["admittance_fixed"]["translation_damping"]};
-  const double rotational_damping_factor{config["admittance_fixed"]["rotation_damping"]};
-  Eigen::MatrixXd stiffness(6, 6), damping(6, 6);
-  stiffness.setZero();
-  stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
-  stiffness.bottomRightCorner(3, 3) << rotational_stiffness * Eigen::MatrixXd::Identity(3, 3);
-  damping.setZero();
-  damping.topLeftCorner(3, 3) << translational_damping_factor * Eigen::MatrixXd::Identity(3, 3);
-  damping.bottomRightCorner(3, 3) << rotational_damping_factor * Eigen::MatrixXd::Identity(3, 3);
+  //stiffness
+  std::vector<double> stiffness_values = config["admittance_fixed"]["stiffness"];
+  Eigen::VectorXd stiffness_vec = Eigen::Map<Eigen::VectorXd>(stiffness_values.data(), stiffness_values.size());
+  Eigen::MatrixXd stiffness = stiffness_vec.asDiagonal();
+
+  //damping
+  std::vector<double> damping_values = config["admittance_fixed"]["damping"];
+  Eigen::VectorXd damping_vec = Eigen::Map<Eigen::VectorXd>(damping_values.data(), damping_values.size());
+  Eigen::MatrixXd damping = damping_vec.asDiagonal();
   
   //mass matrix
-  std::vector<double> diag_values = config["admittance"]["mass"];
+  std::vector<double> diag_values = config["admittance_fixed"]["mass"];
   Eigen::VectorXd diag_vec = Eigen::Map<Eigen::VectorXd>(diag_values.data(), diag_values.size());
   Eigen::MatrixXd virtual_mass = diag_vec.asDiagonal();
 
   //joint weights
-  std::vector<double> weight_values = config["admittance"]["mass"];
+  std::vector<double> weight_values = config["admittance_fixed"]["joint_weight"];
   Eigen::VectorXd joint_weights = Eigen::Map<Eigen::VectorXd>(weight_values.data(), weight_values.size());
   Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
 

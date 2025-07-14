@@ -1,17 +1,13 @@
 {
     "admittance": {
-        "translation_stiffness": 0.0,
-        "translation_damping": 0.0,
-        "rotation_stiffness": 0.0,
-        "rotation_damping": 0.0,
-        "mass": [5.0, 5.0, 5.0, 2.0, 2.0, 2.0],
+        "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "damping": [10.0, 10.0, 10.0, 10.0, 10.0, 10.0],
+        "mass": [2.0, 1.0, 2.0, 2.0, 2.0, 2.0],
         "joint_weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
     },
     "admittance_fixed": {
-        "translation_stiffness": 0.0,
-        "translation_damping": 0.0,
-        "rotation_stiffness": 30.0,
-        "rotation_damping": 10.0,
+        "stiffness": [0.0, 0.0, 0.0, 30.0, 30.0, 30.0],
+        "damping": [0.0, 0.0, 0.0, 10.0, 10.0, 10.0],
         "mass": [3.0, 3.0, 3.5, 2.5, 2.5, 2.5],
         "joint_weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
     }
