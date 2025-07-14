@@ -68,9 +68,10 @@ int main(int argc, char** argv) {
   std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed
   if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << " <publish?>"<< std::endl;
+    std::cerr << "Usage: " << argv[0] << " <config-name>" << " <publish?>"<< std::endl;
     return -1;
   }
+  std::string config_name{argv[1]};
   std::string ros2_publish{argv[2]};
 
   std::string package_share_dir = ament_index_cpp::get_package_share_directory("data_bridge");
@@ -80,22 +81,22 @@ int main(int argc, char** argv) {
   json config = json::parse(f);
 
   //stiffness
-  std::vector<double> stiffness_values = config["admittance"]["stiffness"];
+  std::vector<double> stiffness_values = config[config_name]["stiffness"];
   Eigen::VectorXd stiffness_vec = Eigen::Map<Eigen::VectorXd>(stiffness_values.data(), stiffness_values.size());
   Eigen::MatrixXd stiffness = stiffness_vec.asDiagonal();
 
   //damping
-  std::vector<double> damping_values = config["admittance"]["damping"];
+  std::vector<double> damping_values = config[config_name]["damping"];
   Eigen::VectorXd damping_vec = Eigen::Map<Eigen::VectorXd>(damping_values.data(), damping_values.size());
   Eigen::MatrixXd damping = damping_vec.asDiagonal();
 
   //mass matrix
-  std::vector<double> mass_values = config["admittance"]["mass"];
+  std::vector<double> mass_values = config[config_name]["mass"];
   Eigen::VectorXd mass_vec = Eigen::Map<Eigen::VectorXd>(mass_values.data(), mass_values.size());
   Eigen::MatrixXd virtual_mass = mass_vec.asDiagonal();
 
   //joint weights
-  std::vector<double> weight_values = config["admittance"]["joint_weight"];
+  std::vector<double> weight_values = config[config_name]["joint_weight"];
   Eigen::VectorXd joint_weights = Eigen::Map<Eigen::VectorXd>(weight_values.data(), weight_values.size());
   Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
 
@@ -136,7 +137,7 @@ int main(int argc, char** argv) {
 
   try {
     // connect to robot
-    franka::Robot robot(argv[1]);
+    franka::Robot robot(config["robot_ip"]);
     setDefaultBehavior(robot, 0.80);
 
     // First move the robot to a suitable joint configuration
@@ -259,7 +260,9 @@ int main(int argc, char** argv) {
 
       // translate wrench from FT sensor as wrench in EE frame. MR 3.98
       fext = sensor_adjoint.transpose() * fext;
-      fext = fext_func(fullCount/1000.0);
+      if (config[config_name]["use_dummy_force"]) {
+        fext = fext_func(fullCount/1000.0);
+      }
 
       // compute error to desired equilibrium pose
       // position error
