@@ -170,8 +170,6 @@ int main(int argc, char** argv) {
         // } else {
         //     return Eigen::Matrix<double, 6, 1>::Zero();
         // }
-        double t_ramp = 0.1; // seconds
-        double ramp = std::min(1.0, t / t_ramp);
         Eigen::Matrix<double, 6, 1> fext_dummy;
         fext_dummy << 0.0,
               2 * (std::sin(t  * 2 * M_PI / 4.0)),
@@ -245,14 +243,14 @@ int main(int argc, char** argv) {
       static Eigen::Matrix<double, 6, 1> old_vel = velocity;
       
       Eigen::Matrix<double, 6, 7> djacobian;
-      Eigen::VectorXd acceleration;
+      Eigen::VectorXd accel;
       // arbitrary cutoff for no duration, expected duration is 0.001
       if (duration.toSec() < 0.00000001) {
         djacobian.setZero();
-        acceleration.setZero();
+        accel.setZero();
       } else {
         djacobian = (jacobian - old_jacobian)/duration.toSec();
-        acceleration = (velocity - old_vel)/duration.toSec();
+        accel = (velocity - old_vel)/duration.toSec();
       }
 
       // non static update
@@ -333,7 +331,7 @@ int main(int argc, char** argv) {
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted.head(3));
         new_package.velocity = velocity.head(3).reshaped();
-        new_package.accel = acceleration;
+        new_package.accel = accel;
         new_package.torques_d = tau_d;
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();

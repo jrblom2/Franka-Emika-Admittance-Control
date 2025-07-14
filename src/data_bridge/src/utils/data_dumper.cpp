@@ -17,6 +17,7 @@ void robot_dump(const std::vector<queue_package> & data) {
     std::ofstream translation_file(output_dir / "translation.csv");
     std::ofstream translation_d_file(output_dir / "translation_d.csv");
     std::ofstream velocity_file(output_dir / "velocity.csv");
+    std::ofstream accel_file(output_dir / "accel.csv");
     std::ofstream torques_d_file(output_dir / "torques_d.csv");
     std::ofstream torques_o_file(output_dir / "torques_o.csv");
     std::ofstream torques_c_file(output_dir / "torques_c.csv");
@@ -31,6 +32,7 @@ void robot_dump(const std::vector<queue_package> & data) {
     translation_file << std::fixed << std::setprecision(4);
     translation_d_file << std::fixed << std::setprecision(4);
     velocity_file << std::fixed << std::setprecision(4);
+    accel_file << std::fixed << std::setprecision(4);
     torques_d_file << std::fixed << std::setprecision(4);
     torques_o_file << std::fixed << std::setprecision(4);
     torques_c_file << std::fixed << std::setprecision(4);
@@ -57,6 +59,9 @@ void robot_dump(const std::vector<queue_package> & data) {
 
         for (int i = 0; i < moment.velocity.size(); ++i)
             velocity_file << moment.velocity(i) << (i < moment.velocity.size() - 1 ? "," : "\n");
+        
+        for (int i = 0; i < moment.accel.size(); ++i)
+            accel_file << moment.accel(i) << (i < moment.accel.size() - 1 ? "," : "\n");
 
         for (int i = 0; i < moment.torques_d.size(); ++i)
             torques_d_file << moment.torques_d(i) << (i < moment.torques_d.size() - 1 ? "," : "\n");
