@@ -133,9 +133,10 @@ def plot_comparison(file1, file2, labels, ylabel, title, suptitle=None):
 
 
 # Special plotter for torques
-def plot_torques(file1, file2, labels):
+def plot_torques(file1, file2, file3, labels):
     df1 = pd.read_csv(os.path.join(data_dir, file1 + '.csv'), header=None)
     df2 = pd.read_csv(os.path.join(data_dir, file2 + '.csv'), header=None)
+    df3 = pd.read_csv(os.path.join(data_dir, file3 + '.csv'), header=None)
     time = df1.index / sampling_rate
 
     fig, axs = plt.subplots(3, 3, figsize=(15, 15))
@@ -144,6 +145,7 @@ def plot_torques(file1, file2, labels):
     for i in range(len(labels)):
         axs[i].plot(time, df1[i], label=f'{labels[i]} Commanded')
         axs[i].plot(time, df2[i], label=f'{labels[i]} Observed (no gravity)')
+        axs[i].plot(time, df3[i], label=f'{labels[i]} Friction comp')
         axs[i].set_title(labels[i])
         axs[i].set_xlabel('Time (s)')
         axs[i].set_ylabel('N·m')
@@ -194,6 +196,6 @@ plot_data_with_error_from_zero('orientation_error', ['X', 'Y', 'Z'], 'Orientatio
 plot_comparison(
     'translation', 'translation_d', ['X', 'Y', 'Z'], 'Distance (m)', 'translation', suptitle='Plot for translation'
 )
-plot_torques('torques_d', 'torques_g', [f'Joint {i+1}' for i in range(7)])
+plot_torques('torques_d', 'torques_g', 'torques_f', [f'Joint {i+1}' for i in range(7)])
 plot_joints('joints_accel_d', [f'Joint {i+1} Desired Accel' for i in range(7)], 'R/S^2')
 plot_joints('joints_vel', [f'Joint {i+1}' for i in range(7)], 'R/S')

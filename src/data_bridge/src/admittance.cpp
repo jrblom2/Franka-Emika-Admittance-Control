@@ -100,6 +100,10 @@ int main(int argc, char** argv) {
   Eigen::VectorXd joint_weights = Eigen::Map<Eigen::VectorXd>(weight_values.data(), weight_values.size());
   Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
 
+  //friction comp
+  std::vector<double> friction_values = config[config_name]["friction_comp"];
+  Eigen::VectorXd joint_frictions = Eigen::Map<Eigen::VectorXd>(friction_values.data(), friction_values.size());
+
   //connect to sensor
   net_ft_driver::ft_info input;
   input.ip_address = "192.168.18.12";
@@ -157,7 +161,7 @@ int main(int argc, char** argv) {
     Eigen::Vector3d position_d(initial_transform.translation());
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
     
-    auto set_point_func = [&](double) -> Eigen::Matrix<double, 6, 1> {
+    auto set_point_func_sim = [&](double) -> Eigen::Matrix<double, 6, 1> {
       Eigen::Matrix<double, 6, 1> set {position_d(0), position_d(1), position_d(2), 0.0, 0.0, 0.0};
       return set;
     };
@@ -166,7 +170,7 @@ int main(int argc, char** argv) {
     auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
         Eigen::Matrix<double, 6, 1> fext_dummy;
         fext_dummy << 0.0,
-              2 * (std::sin(t  * 2 * M_PI / 4.0)),
+              (std::sin(t  * 2 * M_PI / 4.0)),
               0.0,
               0.0,
               0.0,
@@ -188,7 +192,7 @@ int main(int argc, char** argv) {
       damping_sim,
       virtual_mass,
       fext_func,
-      set_point_func);
+      set_point_func_sim);
 
     expected_pos = sim_traj.position;
     expected_vel = sim_traj.velocity;
@@ -283,7 +287,7 @@ int main(int argc, char** argv) {
       ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
-      Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
+      Eigen::VectorXd tau_task(7), tau_d(7), tau_friction(7);
       static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
       // MR 6.7 weighted pseudoinverse
@@ -296,8 +300,11 @@ int main(int argc, char** argv) {
       // MR 8.1
       tau_task << mass * ddq_d;
 
+      // friciton compensation term
+      tau_friction = joint_frictions.cwiseProduct(dq);
+
       // add all control elements together
-      tau_d << tau_task + coriolis;
+      tau_d << tau_task + coriolis + tau_friction;
 
       //Spec sheet lists 1000/sec as maximum but in practice should be much lower for smooth human use.
       double max_torque_accel = 10.0 / 1000;
@@ -335,6 +342,7 @@ int main(int argc, char** argv) {
         new_package.torques_o = tau_J_d.reshaped();
         new_package.torques_c = coriolis.reshaped();
         new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
+        new_package.torques_f = tau_friction;
         new_package.ddq_d = ddq_d;
         new_package.dq = dq;
         if (ros2_publish == "TRUE") {
