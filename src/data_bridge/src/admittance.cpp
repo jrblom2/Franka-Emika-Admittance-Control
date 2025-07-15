@@ -101,8 +101,10 @@ int main(int argc, char** argv) {
   Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
 
   //friction comp
-  std::vector<double> friction_values = config[config_name]["friction_comp"];
-  Eigen::VectorXd joint_frictions = Eigen::Map<Eigen::VectorXd>(friction_values.data(), friction_values.size());
+  std::vector<double> coulomb_values = config[config_name]["friction_coulomb"];
+  Eigen::VectorXd coulomb_frictions = Eigen::Map<Eigen::VectorXd>(coulomb_values.data(), coulomb_values.size());
+  std::vector<double> viscous_values = config[config_name]["friction_viscous"];
+  Eigen::VectorXd viscous_frictions = Eigen::Map<Eigen::VectorXd>(viscous_values.data(), viscous_values.size());
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -300,8 +302,12 @@ int main(int argc, char** argv) {
       // MR 8.1
       tau_task << mass * ddq_d;
 
-      // friciton compensation term
-      tau_friction = joint_frictions.cwiseProduct(dq);
+      // coloumb friction
+      double epsilon = config[config_name]["friction_sign_epsilon"];
+      Eigen::VectorXd dq_smooth_sign = dq.array() / (dq.array().square() + epsilon * epsilon).sqrt();
+
+      // total friction comp
+      tau_friction =  coulomb_frictions.cwiseProduct(dq_smooth_sign) + viscous_frictions.cwiseProduct(dq);
 
       // add all control elements together
       tau_d << tau_task + coriolis + tau_friction;
