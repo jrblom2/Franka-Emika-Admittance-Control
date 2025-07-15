@@ -114,7 +114,6 @@ int main(int argc, char** argv) {
   input.use_biasing = "true";
   input.internal_filter_rate = 0;
   net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
-  std::cout << "Sensor started." << std::endl;
 
   // setup sensor transform
   Eigen::Matrix<double, 3, 3> sensor_rotation;
@@ -124,7 +123,7 @@ int main(int argc, char** argv) {
                       0,                0,                -1;
   
   // shifted down in sensor frame (up to the user)
-  Eigen::Vector3d sensor_translation {0.0, 0.0, -0.0424};
+  Eigen::Vector3d sensor_translation {0.0, 0.0, 0.0};
   Eigen::Matrix3d sensor_translation_skew;
   sensor_translation_skew <<     0,                          -sensor_translation.z(),  sensor_translation.y(),
                                  sensor_translation.z(),     0,                        -sensor_translation.x(),
@@ -168,11 +167,10 @@ int main(int argc, char** argv) {
       return set;
     };
 
-    std::vector<Eigen::Matrix<double, 6, 1>> fext_data = load_csv(package_share_dir + "/config/actual_wrench.csv");
     auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
         Eigen::Matrix<double, 6, 1> fext_dummy;
-        fext_dummy << 0.0,
-              (std::sin(t  * 2 * M_PI / 4.0)),
+        fext_dummy << (std::sin(t  * 2 * M_PI / 4.0)),
+              0.0,
               0.0,
               0.0,
               0.0,
@@ -330,7 +328,7 @@ int main(int argc, char** argv) {
       static Eigen::Matrix<double, 6, 1> predicted;
       predicted << position, error.tail(3); 
 
-      if (expected_pos.size() > 0 && fullCount < (int)expected_pos.size()) {
+      if (expected_pos.size() > 0 && fullCount < (int)expected_pos.size() && config[config_name]["use_dummy_force"]) {
         predicted = expected_pos[fullCount];
       }
       fullCount++;
@@ -371,6 +369,7 @@ int main(int argc, char** argv) {
               << "After starting try to push the robot and see how it reacts." << std::endl
               << "Press Enter to continue..." << std::endl;
     std::cin.ignore();
+    sensor.re_bias();
 
     // data bridge through ROS2 setup
     if (ros2_publish == "TRUE") {
@@ -397,6 +396,6 @@ int main(int argc, char** argv) {
   }
 
   robot_dump(dump_vector);
-
+  sensor.on_deactivate();
   return 0;
 }

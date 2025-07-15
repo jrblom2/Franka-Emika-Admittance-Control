@@ -115,6 +115,16 @@ int NetFtHardwareInterface::on_activate()
   return 1;
 }
 
+int NetFtHardwareInterface::re_bias()
+{
+  if (!driver_->set_bias()) {
+        std::cerr << "Couldn't zero sensor with software bias!" << std::endl;
+        return 1;
+  }
+  std::cout << "Zeroed sensor." << std::endl;
+  return 0;
+}
+
 int NetFtHardwareInterface::on_deactivate()
 {
   if (driver_->stop_streaming()) {

@@ -19,3 +19,5 @@ install(TARGETS ft_interface
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
 )
+install(TARGETS ft_test
+  DESTINATION lib/${PROJECT_NAME})

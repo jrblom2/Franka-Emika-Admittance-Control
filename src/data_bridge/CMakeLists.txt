@@ -43,7 +43,6 @@ set(EXAMPLES
   cartesian_impedance_control
   white_light
   admittance
-  admittance_fixed
   spring_demo
   spring_demo_seperate
 )

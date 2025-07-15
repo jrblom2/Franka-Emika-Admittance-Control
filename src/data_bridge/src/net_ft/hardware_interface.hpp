@@ -62,6 +62,9 @@ public:
   int on_deactivate();
 
   NET_FT_DRIVER_PUBLIC
+  int re_bias();
+
+  NET_FT_DRIVER_PUBLIC
   int read();
 
   Vector6D ft_sensor_measurements_;
