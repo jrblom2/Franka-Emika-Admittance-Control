@@ -164,13 +164,6 @@ int main(int argc, char** argv) {
 
     std::vector<Eigen::Matrix<double, 6, 1>> fext_data = load_csv(package_share_dir + "/config/actual_wrench.csv");
     auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
-        // size_t index = static_cast<size_t>(t);
-        // index = index/10;
-        // if (index < fext_data.size()) {
-        //     return fext_data[index];
-        // } else {
-        //     return Eigen::Matrix<double, 6, 1>::Zero();
-        // }
         Eigen::Matrix<double, 6, 1> fext_dummy;
         fext_dummy << 0.0,
               2 * (std::sin(t  * 2 * M_PI / 4.0)),
@@ -185,7 +178,7 @@ int main(int argc, char** argv) {
     x0_vec << position_d, 0.0, 0.0, 0.0;
 
     Eigen::MatrixXd damping_sim = damping;
-    damping_sim(1,1) = 16.0;
+    // damping_sim(1,1) = 16.0;
     std::vector<Eigen::Matrix<double, 6, 1>> expected_pos;
     std::vector<Eigen::Matrix<double, 6, 1>> expected_vel;
     std::vector<Eigen::Matrix<double, 6, 1>> expected_accel;
@@ -237,26 +230,29 @@ int main(int argc, char** argv) {
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
-
-      Eigen::Matrix<double, 6, 1> velocity = jacobian * dq;
       
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
-      static Eigen::Matrix<double, 6, 1> old_vel = velocity;
+      static Eigen::Vector3d old_velocity = Eigen::Vector3d::Zero();
+      static Eigen::Vector3d old_position = position;
       
       Eigen::Matrix<double, 6, 7> djacobian;
-      Eigen::VectorXd accel;
+      Eigen::Vector3d velocity;
+      Eigen::Vector3d accel;
       // arbitrary cutoff for no duration, expected duration is 0.001
       if (duration.toSec() < 0.00000001) {
         djacobian.setZero();
+        velocity.setZero();
         accel.setZero();
       } else {
         djacobian = (jacobian - old_jacobian)/duration.toSec();
-        accel = (velocity - old_vel)/duration.toSec();
+        velocity = (position - old_position)/duration.toSec();
+        accel = (velocity - old_velocity)/duration.toSec();
       }
 
       // non static update
       old_jacobian = jacobian;
-      old_vel = velocity;
+      old_velocity = velocity;
+      old_position = position;
 
       // translate wrench from FT sensor as wrench in EE frame. MR 3.98
       fext = sensor_adjoint.transpose() * fext;
@@ -284,7 +280,7 @@ int main(int argc, char** argv) {
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
 
-      ddx_d << virtual_mass.inverse() * (fext - (damping * velocity) - (stiffness * error));
+      ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
       Eigen::VectorXd tau_task(7), tau_error(7), tau_d(7);
@@ -333,7 +329,7 @@ int main(int argc, char** argv) {
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted.head(3));
-        new_package.velocity = velocity.head(3).reshaped();
+        new_package.velocity = velocity;
         new_package.accel = accel;
         new_package.torques_d = tau_d;
         new_package.torques_o = tau_J_d.reshaped();

@@ -188,6 +188,7 @@ def plot_joints(file, labels, units):
 plot_data('actual_wrench', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'N', 6)
 plot_data('velocity', ['X', 'Y', 'Z'], 'M/S', 3)
 plot_data('desired_accel', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'M/S²', 6)
+plot_data('accel', ['X', 'Y', 'Z'], 'M/S²', 3)
 plot_data_with_error_from_zero('orientation_error', ['X', 'Y', 'Z'], 'Orientation Error (degrees)', 3)
 
 plot_comparison(
