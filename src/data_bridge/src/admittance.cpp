@@ -169,8 +169,8 @@ int main(int argc, char** argv) {
 
     auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
         Eigen::Matrix<double, 6, 1> fext_dummy;
-        fext_dummy << (std::sin(t  * 2 * M_PI / 4.0)),
-              0.0,
+        fext_dummy << 0.0,
+              (std::sin(t  * 2 * M_PI / 4.0)),
               0.0,
               0.0,
               0.0,
@@ -260,6 +260,11 @@ int main(int argc, char** argv) {
 
       // translate wrench from FT sensor as wrench in EE frame. MR 3.98
       fext = sensor_adjoint.transpose() * fext;
+      if (config[config_name]["swap_torque"]) {
+        fext(3) = 0.0;
+        fext(4) = 0.0;
+        fext(5) = 0.0;
+      }
       if (config[config_name]["use_dummy_force"]) {
         fext = fext_func(fullCount/1000.0);
       }

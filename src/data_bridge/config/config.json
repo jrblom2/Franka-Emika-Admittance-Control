@@ -2,32 +2,35 @@
     "robot_ip": "panda0.robot",
     "admittance": {
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        "damping": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "damping": [4.0, 4.0, 4.0, 0.3, 0.3, 0.4],
         "mass": [3.0, 3.0, 3.0, 2.0, 2.0, 2.0],
         "joint_weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         "friction_coulomb": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "friction_viscous": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "friction_sign_epsilon": 0.01,
-        "use_dummy_force": false
+        "use_dummy_force": false,
+        "swap_torque": false
     },
     "admittance_test": {
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        "damping": [10.0, 10.0, 10.0, 0.0, 0.0, 0.0],
-        "mass": [1.0, 1.0, 1.0, 2.5, 2.5, 2.5],
+        "damping": [10.0, 5.0, 10.0, 0.0, 0.0, 0.0],
+        "mass": [1.0, 0.75, 1.0, 2.5, 2.5, 2.5],
         "joint_weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-        "friction_coulomb": [0.0, 0.0, 0.45, 0.0, 0.0, 0.0, 0.0],
-        "friction_viscous": [0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0],
+        "friction_coulomb": [0.0, 0.0, 0.50, 0.0, 0.0, 0.0, 0.0],
+        "friction_viscous": [0.0, 0.0, 2.2, 0.0, 0.0, 0.0, 0.0],
         "friction_sign_epsilon": 0.01,
-        "use_dummy_force": true
+        "use_dummy_force": true,
+        "swap_torque": false
     },
     "admittance_fixed": {
-        "stiffness": [0.0, 0.0, 0.0, 30.0, 30.0, 30.0],
-        "damping": [10.0, 10.0, 10.0, 15.0, 15.0, 15.0],
-        "mass": [2.0, 2.0, 2.5, 2.5, 2.5, 2.5],
+        "stiffness": [0.0, 0.0, 0.0, 50.0, 50.0, 50.0],
+        "damping": [3.0, 3.0, 3.0, 30.0, 30.0, 30.0],
+        "mass": [3.5, 3.5, 3.5, 3.0, 3.0, 3.0],
         "joint_weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         "friction_coulomb": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "friction_viscous": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "friction_sign_epsilon": 0.01,
-        "use_dummy_force": false
+        "use_dummy_force": false,
+        "swap_torque": true
     }
 }
