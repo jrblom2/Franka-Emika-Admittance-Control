@@ -38,24 +38,6 @@ void signal_handler(int signal) {
     }
 }
 
-std::vector<Eigen::Matrix<double, 6, 1>> load_csv(const std::string& filename) {
-        std::vector<Eigen::Matrix<double, 6, 1>> data;
-        std::ifstream file(filename);
-        std::string line;
-
-        while (std::getline(file, line)) {
-            std::stringstream ss(line);
-            Eigen::Matrix<double, 6, 1> row;
-            std::string cell;
-            int i = 0;
-            while (std::getline(ss, cell, ',') && i < 6) {
-                row(i++) = std::stod(cell);
-            }
-            if (i == 6) data.push_back(row);
-        }
-        return data;
-    }
-
 /**
  * @example cartesian_impedance_control.cpp
  * An example showing a simple cartesian impedance controller without inertia shaping
@@ -110,30 +92,32 @@ int main(int argc, char** argv) {
   net_ft_driver::ft_info input;
   input.ip_address = "192.168.18.12";
   input.sensor_type = "ati_axia";
-  input.rdt_sampling_rate = 1000;
+  input.rdt_sampling_rate = 4000;
   input.use_biasing = "true";
   input.internal_filter_rate = 0;
   net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
 
   // setup sensor transform
   Eigen::Matrix<double, 3, 3> sensor_rotation;
-  //rotated to align with the base frame in home position
-  sensor_rotation <<  -std::cos(M_PI_4), -std::sin(M_PI_4), 0,
-                      -std::sin(M_PI_4), std::cos(M_PI_4), 0,
-                      0,                0,                -1;
+  //rotated to align with sensor frame, 90 degrees counter clockwise
+  sensor_rotation <<  std::cos(-M_PI_2), -std::sin(-M_PI_2), 0,
+                      std::sin(-M_PI_2), std::cos(-M_PI_2), 0,
+                      0,                0,                1;
   
   // shifted down in sensor frame (up to the user)
-  Eigen::Vector3d sensor_translation {0.0, 0.0, 0.0};
+  Eigen::Vector3d sensor_translation {0.0, 0.0, -0.0424};
   Eigen::Matrix3d sensor_translation_skew;
   sensor_translation_skew <<     0,                          -sensor_translation.z(),  sensor_translation.y(),
                                  sensor_translation.z(),     0,                        -sensor_translation.x(),
                                  -sensor_translation.y(),    sensor_translation.x(),   0;
   
-  Eigen::MatrixXd sensor_adjoint(6, 6);
-  sensor_adjoint.setZero();
-  sensor_adjoint.topLeftCorner(3, 3) << sensor_rotation;
-  sensor_adjoint.bottomRightCorner(3,3) << sensor_rotation;
-  sensor_adjoint.bottomLeftCorner(3,3) << sensor_translation_skew * sensor_rotation;
+  Eigen::MatrixXd sensor_ee_adjoint(6, 6);
+  sensor_ee_adjoint.setZero();
+  sensor_ee_adjoint.topLeftCorner(3, 3) << sensor_rotation;
+  sensor_ee_adjoint.bottomRightCorner(3,3) << sensor_rotation;
+  sensor_ee_adjoint.bottomLeftCorner(3,3) << sensor_translation_skew * sensor_rotation;
+
+  double gravity_comp = 2.75;
   
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
@@ -230,7 +214,7 @@ int main(int argc, char** argv) {
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J(robot_state.tau_J.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J_d(robot_state.tau_J_d.data());
-      Eigen::Map<Eigen::Matrix<double, 6, 1>> fext(ft_reading.data());
+      Eigen::Map<Eigen::Matrix<double, 6, 1>> sensor_fext(ft_reading.data());
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
@@ -259,14 +243,34 @@ int main(int argc, char** argv) {
       old_position = position;
 
       // translate wrench from FT sensor as wrench in EE frame. MR 3.98
-      fext = sensor_adjoint.transpose() * fext;
+      Eigen::Matrix<double, 6, 1> ee_fext = sensor_ee_adjoint.transpose() * sensor_fext;
+
+      // translate gravity wrench into EE frame
+      Eigen::Matrix<double, 6, 1> gravity_wrench {0.0, 0.0, -gravity_comp, 0.0, 0.0, 0.0};
+      Eigen::MatrixXd base_ee_adjoint(6, 6);
+      base_ee_adjoint.setZero();
+      base_ee_adjoint.topLeftCorner(3, 3) << transform.rotation();
+      base_ee_adjoint.bottomRightCorner(3,3) << transform.rotation();
+      Eigen::Matrix<double, 6, 1> ee_gravity = base_ee_adjoint.transpose() * gravity_wrench;
+      ee_fext(0) = ee_fext(0) - ee_gravity(0);
+      ee_fext(1) = ee_fext(1) - ee_gravity(1);
+      // add gravity comp back to account for sensor bias
+      ee_fext(2) = ee_fext(2) - ee_gravity(2) + gravity_comp;
+
+      // translate gravity compensated wrench at EE to base frame to express acceleration in cartesian space.
+      Eigen::MatrixXd ee_base_adjoint(6, 6);
+      ee_base_adjoint.setZero();
+      ee_base_adjoint.topLeftCorner(3, 3) << transform.rotation().transpose();
+      ee_base_adjoint.bottomRightCorner(3,3) << transform.rotation().transpose();
+      Eigen::Matrix<double, 6, 1> base_fext = ee_base_adjoint.transpose() * ee_fext;
+
       if (config[config_name]["swap_torque"]) {
-        fext(3) = 0.0;
-        fext(4) = 0.0;
-        fext(5) = 0.0;
+        base_fext(3) = -base_fext(3);
+        base_fext(4) = -base_fext(4);
+        base_fext(5) = -base_fext(5);
       }
       if (config[config_name]["use_dummy_force"]) {
-        fext = fext_func(fullCount/1000.0);
+        base_fext = fext_func(fullCount/1000.0);
       }
 
       // compute error to desired equilibrium pose
@@ -289,7 +293,7 @@ int main(int argc, char** argv) {
       // MR 11.66
       Eigen::VectorXd ddx_d(6);
 
-      ddx_d << virtual_mass.inverse() * (fext - (damping * (jacobian * dq)) - (stiffness * error));
+      ddx_d << virtual_mass.inverse() * (base_fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute control
       Eigen::VectorXd tau_task(7), tau_d(7), tau_friction(7);
@@ -341,7 +345,7 @@ int main(int argc, char** argv) {
       if (count == 10) {
         queue_package new_package;
         new_package.desired_accel = Eigen::Matrix<double, 6, 1>(ddx_d);
-        new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(fext);
+        new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(base_fext);
         new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted.head(3));
