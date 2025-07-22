@@ -88,6 +88,18 @@ int main(int argc, char** argv) {
   std::vector<double> viscous_values = config[config_name]["friction_viscous"];
   Eigen::VectorXd viscous_frictions = Eigen::Map<Eigen::VectorXd>(viscous_values.data(), viscous_values.size());
 
+  //boundry conditions
+  bool use_boundry = config[config_name]["use_boundry"];
+
+  std::vector<double> boundry_min_values = config[config_name]["boundry"]["min"];
+  Eigen::VectorXd boundry_min = Eigen::Map<Eigen::VectorXd>(boundry_min_values.data(), boundry_min_values.size());
+
+  std::vector<double> boundry_max_values = config[config_name]["boundry"]["max"];
+  Eigen::VectorXd boundry_max = Eigen::Map<Eigen::VectorXd>(boundry_max_values.data(), boundry_max_values.size());
+
+  double boundry_trans_stiffness = config[config_name]["boundry"]["trans_stiffness"];
+  double boundry_rot_stiffness = config[config_name]["boundry"]["rot_stiffness"];
+
   //connect to sensor
   net_ft_driver::ft_info input;
   input.ip_address = "192.168.18.12";
@@ -289,20 +301,44 @@ int main(int argc, char** argv) {
       error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
       // Transform to base frame
       error.tail(3) << -transform.rotation() * error.tail(3);
-
-      // MR 11.66
+      // compute control MR 11.66
       Eigen::VectorXd ddx_d(6);
-
       ddx_d << virtual_mass.inverse() * (base_fext - (damping * (jacobian * dq)) - (stiffness * error));
 
-      // compute control
+      // compute boundry acceleration to keep EE in bounds
+      if (use_boundry) {
+        // Convert quaternion to rotation vector (angle * axis)
+        Eigen::AngleAxisd angle_axis(error_quaternion);
+        Eigen::Vector3d orientation_error = angle_axis.angle() * angle_axis.axis();
+
+        Eigen::VectorXd state(6);
+        state.head(3) = position;
+        state.tail(3) = -transform.rotation() * orientation_error; // base frame transform
+
+        Eigen::VectorXd correction = 
+            (state - boundry_max).cwiseMax(0.0) +
+            (state - boundry_min).cwiseMin(0.0);
+
+        Eigen::VectorXd ddx_b(6);
+        ddx_b.setZero();
+        // if out of bounds anywhere, apply corrective force and damp user movement
+        if ((correction.head(3).array().abs() > 0.001).any()) {
+            ddx_b.head(3) = -correction.head(3) * boundry_trans_stiffness - 3.0 * std::sqrt(boundry_trans_stiffness) * (jacobian * dq).head(3);
+        }
+        if ((correction.tail(3).array().abs() > 0.001).any()) {
+            ddx_b.tail(3) = -correction.tail(3) * boundry_rot_stiffness - 1.0 * std::sqrt(boundry_rot_stiffness) * (jacobian * dq).tail(3);
+        }
+
+        ddx_d += ddx_b;
+      }
+
       Eigen::VectorXd tau_task(7), tau_d(7), tau_friction(7);
       static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
       // MR 6.7 weighted pseudoinverse
       Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
       
-      // MR 11.66
+      // translate EE accel to joint accel MR 11.66
       Eigen::VectorXd ddq_d(7);
       ddq_d << weighted_pseudo_inverse * (ddx_d - (djacobian * dq));
       
@@ -316,9 +352,8 @@ int main(int argc, char** argv) {
       // total friction comp
       tau_friction =  coulomb_frictions.cwiseProduct(dq_smooth_sign) + viscous_frictions.cwiseProduct(dq);
 
-      // add all control elements together
+      // inverse dynamics, add all control elements together
       tau_d << tau_task + coriolis + tau_friction;
-
       //Spec sheet lists 1000/sec as maximum but in practice should be much lower for smooth human use.
       double max_torque_accel = 10.0 / 1000;
       for (int i = 0; i < tau_d.size(); ++i) {

@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0" version="28.0.4">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0" version="28.0.5">
   <diagram name="Page-1" id="zEqlK7t6ldvu853xDJui">
     <mxGraphModel dx="1360" dy="1865" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
       <root>
@@ -135,8 +135,8 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="XGiLKBSpAevxkSpyMMWM-2" value="Transform from Sensor to EE frame using \(({Ad_{Tsensor}})^T\)&lt;br&gt;$$Tsensor = \begin{bmatrix}&lt;br&gt;&amp;nbsp; -\cos\left(\frac{\pi}{4}\right) &amp;amp; -\sin\left(\frac{\pi}{4}\right) &amp;amp; 0 &amp;amp; 0 \\&lt;br&gt;&amp;nbsp; -\sin\left(\frac{\pi}{4}\right) &amp;amp;&amp;nbsp; \cos\left(\frac{\pi}{4}\right) &amp;amp; 0 &amp;amp; 0 \\&lt;br&gt;&amp;nbsp;&amp;nbsp; 0&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp; &amp;amp;&amp;nbsp; 0&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp; &amp;amp; -1 &amp;amp; -0.0424 \\&lt;br&gt;&amp;nbsp;&amp;nbsp; 0&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp; &amp;amp;&amp;nbsp; 0&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp; &amp;amp;&amp;nbsp; 0 &amp;amp; 1&lt;br&gt;\end{bmatrix}&lt;br&gt;$$" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="770" y="240" width="340" height="160" as="geometry" />
+        <mxCell id="XGiLKBSpAevxkSpyMMWM-2" value="Frame transformation and gravity compensation&lt;br&gt;$${Ad_{Teb}}^T(({Ad_{Tse}})^TF_{sensor} + F_{gravity})$$&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="770" y="260" width="230" height="120" as="geometry" />
         </mxCell>
         <mxCell id="XGiLKBSpAevxkSpyMMWM-3" value="" style="endArrow=classic;html=1;rounded=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" parent="1" source="XGiLKBSpAevxkSpyMMWM-2" target="jYTH6Jz3JsOvPJAKBcka-18" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
@@ -148,6 +148,9 @@
           <mxGeometry x="-0.1686" relative="1" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
+        </mxCell>
+        <mxCell id="ZWVQMcRDHu6Msy1tPFX7-2" value="Frames:&lt;br&gt;\(s = sensor\)&lt;br&gt;\(e = EE\)&lt;br&gt;\(b = base\)" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="870" y="42.5" width="120" height="60" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

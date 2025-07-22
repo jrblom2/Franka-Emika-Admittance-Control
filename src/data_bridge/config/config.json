@@ -2,14 +2,21 @@
     "robot_ip": "panda0.robot",
     "admittance": {
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        "damping": [4.0, 4.0, 4.0, 0.3, 0.3, 0.4],
-        "mass": [3.0, 3.0, 3.0, 2.0, 2.0, 2.0],
+        "damping": [3.0, 3.0, 3.0, 0.3, 0.3, 0.4],
+        "mass": [2.0, 2.0, 2.0, 2.0, 2.0, 2.0],
         "joint_weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         "friction_coulomb": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "friction_viscous": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "friction_sign_epsilon": 0.01,
         "use_dummy_force": false,
-        "swap_torque": false
+        "swap_torque": false,
+        "use_boundry": true,
+        "boundry": {
+            "min": [0.30, -0.25, 0.40, -1.0, -1.0, -1.0],
+            "max": [0.60,  0.25, 0.80, 1.0, 1.0, 1.0],
+            "trans_stiffness": 60.0,
+            "rot_stiffness": 20.0
+        }
     },
     "admittance_test": {
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -20,7 +27,14 @@
         "friction_viscous": [0.0, 0.0, 2.2, 0.0, 0.0, 0.0, 0.0],
         "friction_sign_epsilon": 0.01,
         "use_dummy_force": true,
-        "swap_torque": false
+        "swap_torque": false,
+        "use_boundry": false,
+        "boundry": {
+            "min": [0.30, -0.25, 0.40, -1.0, -1.0, -1.0],
+            "max": [0.60,  0.25, 0.80, 1.0, 1.0, 1.0],
+            "trans_stiffness": 60.0,
+            "rot_stiffness": 20.0
+        }
     },
     "admittance_fixed": {
         "stiffness": [0.0, 0.0, 0.0, 50.0, 50.0, 50.0],
@@ -31,6 +45,13 @@
         "friction_viscous": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "friction_sign_epsilon": 0.01,
         "use_dummy_force": false,
-        "swap_torque": true
+        "swap_torque": true,
+        "use_boundry": true,
+        "boundry": {
+            "min": [0.30, -0.25, 0.40, -1.0, -1.0, -1.0],
+            "max": [0.60,  0.25, 0.80, 1.0, 1.0, 1.0],
+            "trans_stiffness": 60.0,
+            "rot_stiffness": 20.0
+        }
     }
 }
