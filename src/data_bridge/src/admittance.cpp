@@ -230,29 +230,51 @@ int main(int argc, char** argv) {
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
+
+      // compute error to desired equilibrium pose
+      // position error
+      Eigen::Matrix<double, 6, 1> error;
+      error.head(3) << position - position_d;
       
+      // orientation error
+      // "difference" quaternion
+      if (orientation_d.coeffs().dot(orientation.coeffs()) < 0.0) {
+        orientation.coeffs() << -orientation.coeffs();
+      }
+
+      // "difference" quaternion for use in control
+      Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d);
+      error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
+      // Transform to base frame
+      error.tail(3) << -transform.rotation() * error.tail(3);
+
+      // axis angle representation for use in boundaries and logging (in base frame)
+      Eigen::AngleAxisd angle_axis(error_quaternion);
+      Eigen::Vector3d orientation_error_axis_angle = -transform.rotation() * (angle_axis.angle() * angle_axis.axis());
+      
+      Eigen::VectorXd position_6d(6);
+      position_6d << position, orientation_error_axis_angle;
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
-      static Eigen::Vector3d old_velocity = Eigen::Vector3d::Zero();
-      static Eigen::Vector3d old_position = position;
+      static Eigen::VectorXd old_velocity = Eigen::VectorXd::Zero(6);
+      static Eigen::VectorXd old_position = position_6d;
       
       Eigen::Matrix<double, 6, 7> djacobian;
-      Eigen::Vector3d velocity;
-      Eigen::Vector3d accel;
+      Eigen::VectorXd velocity;
+      Eigen::VectorXd accel;
       // arbitrary cutoff for no duration, expected duration is 0.001
       if (duration.toSec() < 0.00000001) {
         djacobian.setZero();
-        velocity.setZero();
-        accel.setZero();
+        velocity.setZero(6);
+        accel.setZero(6);
       } else {
         djacobian = (jacobian - old_jacobian)/duration.toSec();
-        velocity = (position - old_position)/duration.toSec();
+        velocity = (position_6d - old_position)/duration.toSec();
         accel = (velocity - old_velocity)/duration.toSec();
       }
-
       // non static update
       old_jacobian = jacobian;
       old_velocity = velocity;
-      old_position = position;
+      old_position = position_6d;
 
       // translate wrench from FT sensor as wrench in EE frame. MR 3.98
       Eigen::Matrix<double, 6, 1> ee_fext = sensor_ee_adjoint.transpose() * sensor_fext;
@@ -285,39 +307,15 @@ int main(int argc, char** argv) {
         base_fext = fext_func(fullCount/1000.0);
       }
 
-      // compute error to desired equilibrium pose
-      // position error
-      Eigen::Matrix<double, 6, 1> error;
-      error.head(3) << position - position_d;
-      
-      // orientation error
-      // "difference" quaternion
-      if (orientation_d.coeffs().dot(orientation.coeffs()) < 0.0) {
-        orientation.coeffs() << -orientation.coeffs();
-      }
-
-      // "difference" quaternion
-      Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d);
-      error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
-      // Transform to base frame
-      error.tail(3) << -transform.rotation() * error.tail(3);
       // compute control MR 11.66
       Eigen::VectorXd ddx_d(6);
       ddx_d << virtual_mass.inverse() * (base_fext - (damping * (jacobian * dq)) - (stiffness * error));
 
       // compute boundry acceleration to keep EE in bounds
       if (use_boundry) {
-        // Convert quaternion to rotation vector (angle * axis)
-        Eigen::AngleAxisd angle_axis(error_quaternion);
-        Eigen::Vector3d orientation_error = angle_axis.angle() * angle_axis.axis();
-
-        Eigen::VectorXd state(6);
-        state.head(3) = position;
-        state.tail(3) = -transform.rotation() * orientation_error; // base frame transform
-
         Eigen::VectorXd correction = 
-            (state - boundry_max).cwiseMax(0.0) +
-            (state - boundry_min).cwiseMin(0.0);
+            (position_6d - boundry_max).cwiseMax(0.0) +
+            (position_6d - boundry_min).cwiseMin(0.0);
 
         Eigen::VectorXd ddx_b(6);
         ddx_b.setZero();
@@ -370,7 +368,7 @@ int main(int argc, char** argv) {
       static int count = 0;
       count++;
       static Eigen::Matrix<double, 6, 1> predicted;
-      predicted << position, error.tail(3); 
+      predicted << position_6d; 
 
       if (expected_pos.size() > 0 && fullCount < (int)expected_pos.size() && config[config_name]["use_dummy_force"]) {
         predicted = expected_pos[fullCount];
@@ -381,7 +379,7 @@ int main(int argc, char** argv) {
         queue_package new_package;
         new_package.desired_accel = Eigen::Matrix<double, 6, 1>(ddx_d);
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(base_fext);
-        new_package.orientation_error = Eigen::Matrix<double, 3, 1>(error.tail(3));
+        new_package.orientation_error = Eigen::Matrix<double, 3, 1>(orientation_error_axis_angle);
         new_package.translation = Eigen::Vector3d(position);
         new_package.translation_d = Eigen::Vector3d(predicted.head(3));
         new_package.velocity = velocity;

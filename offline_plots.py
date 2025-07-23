@@ -19,20 +19,20 @@ sampling_rate = 100
 
 
 # Generic single file plotter
-def plot_data(file_name, labels, ylabel, num_columns, y_lim_min=None, y_lim_max=None):
+def plot_data(file_name, output_name, labels, ylabel, col_indexes, y_lim_min=None, y_lim_max=None):
     df = pd.read_csv(os.path.join(data_dir, file_name + '.csv'), header=None)
     time = df.index / sampling_rate
 
     plt.figure()
-    for i in range(num_columns):
-        plt.plot(time, df[i], label=labels[i])
+    for j, i in enumerate(col_indexes):
+        plt.plot(time, df[i], label=labels[j])
     plt.title(f'Plot for {file_name}')
     plt.xlabel('Time (s)')
     plt.ylabel(ylabel)
     plt.ylim((y_lim_min, y_lim_max))
     plt.legend()
     plt.grid(True)
-    plt.savefig(os.path.join(output_dir, f'{file_name}.png'))
+    plt.savefig(os.path.join(output_dir, f'{output_name}.png'))
     plt.close()
 
 
@@ -187,10 +187,14 @@ def plot_joints(file, labels, units):
 
 # === Call Plotting Functions ===
 
-plot_data('actual_wrench', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'N', 6)
-plot_data('velocity', ['X', 'Y', 'Z'], 'M/S', 3)
-plot_data('desired_accel', ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'], 'M/S²', 6)
-plot_data('accel', ['X', 'Y', 'Z'], 'M/S²', 3)
+plot_data('actual_wrench', 'actual_wrench_trans', ['X', 'Y', 'Z'], 'N', [0, 1, 2])
+plot_data('actual_wrench', 'actual_wrench_rot', ['Roll', 'Pitch', 'Yaw'], 'Nm', [3, 4, 5])
+plot_data('velocity', 'velocity_trans', ['X', 'Y', 'Z'], 'M/S', [0, 1, 2])
+plot_data('velocity', 'velocity_rot', ['Roll', 'Pitch', 'Yaw'], 'R/S', [3, 4, 5])
+plot_data('desired_accel', 'desired_accel_trans', ['X', 'Y', 'Z'], 'M/S^2', [0, 1, 2])
+plot_data('desired_accel', 'desired_accel_rot', ['Roll', 'Pitch', 'Yaw'], 'R/S^2', [3, 4, 5])
+plot_data('accel', 'accel_trans', ['X', 'Y', 'Z'], 'M/S^2', [0, 1, 2])
+plot_data('accel', 'accel_rot', ['Roll', 'Pitch', 'Yaw'], 'R/S^2', [3, 4, 5])
 plot_data_with_error_from_zero('orientation_error', ['X', 'Y', 'Z'], 'Orientation Error (degrees)', 3)
 
 plot_comparison(
