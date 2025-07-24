@@ -22,6 +22,7 @@ add_library(utilities STATIC
   src/utils/traj_simulate.cpp
   src/utils/minimal_publisher.cpp
   src/utils/data_dumper.cpp
+  src/utils/butterworth.cpp
 )
 target_include_directories(utilities PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

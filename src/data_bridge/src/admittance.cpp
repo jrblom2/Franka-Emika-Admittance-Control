@@ -26,6 +26,7 @@
 #include "traj_simulate.hpp"
 #include "minimal_publisher.hpp"
 #include "data_dumper.hpp"
+#include "butterworth.hpp"
 
 using json = nlohmann::json;
 
@@ -62,6 +63,9 @@ int main(int argc, char** argv) {
   
   json config = json::parse(f);
 
+  //how fast the torque is allowed to change
+  double torque_smoothing = config[config_name]["torque_smoothing"];
+
   //stiffness
   std::vector<double> stiffness_values = config[config_name]["stiffness"];
   Eigen::VectorXd stiffness_vec = Eigen::Map<Eigen::VectorXd>(stiffness_values.data(), stiffness_values.size());
@@ -83,6 +87,7 @@ int main(int argc, char** argv) {
   Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
 
   //friction comp
+  double coulomb_epsilon = config[config_name]["friction_sign_epsilon"];
   std::vector<double> coulomb_values = config[config_name]["friction_coulomb"];
   Eigen::VectorXd coulomb_frictions = Eigen::Map<Eigen::VectorXd>(coulomb_values.data(), coulomb_values.size());
   std::vector<double> viscous_values = config[config_name]["friction_viscous"];
@@ -110,11 +115,11 @@ int main(int argc, char** argv) {
   std::vector<double> velocity_max_damping_values = config[config_name]["velocity_max"]["damping"];
   Eigen::VectorXd velocity_max_damping = Eigen::Map<Eigen::VectorXd>(velocity_max_damping_values.data(), velocity_max_damping_values.size());
 
-  //connect to sensor
+  //connect to sensor, see data sheet for filter selection based on sampling rate. Manual filter works better.
   net_ft_driver::ft_info input;
   input.ip_address = "192.168.18.12";
   input.sensor_type = "ati_axia";
-  input.rdt_sampling_rate = 4000;
+  input.rdt_sampling_rate = 1000;
   input.use_biasing = "true";
   input.internal_filter_rate = 0;
   net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
@@ -236,7 +241,7 @@ int main(int argc, char** argv) {
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> dq(robot_state.dq.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J(robot_state.tau_J.data());
       Eigen::Map<const Eigen::Matrix<double, 7, 1>> tau_J_d(robot_state.tau_J_d.data());
-      Eigen::Map<Eigen::Matrix<double, 6, 1>> sensor_fext(ft_reading.data());
+      Eigen::Map<Eigen::Matrix<double, 6, 1>> sensor_fext_raw(ft_reading.data());
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
@@ -267,7 +272,7 @@ int main(int argc, char** argv) {
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
       static Eigen::VectorXd old_velocity = Eigen::VectorXd::Zero(6);
       static Eigen::VectorXd old_position = position_6d;
-      static const double alpha = 0.1;
+      static const double velocity_alpha = 0.1;
       
       Eigen::Matrix<double, 6, 7> djacobian;
       Eigen::VectorXd velocity;
@@ -282,13 +287,17 @@ int main(int argc, char** argv) {
       } else {
         djacobian = (jacobian - old_jacobian)/duration.toSec();
         velocity_raw = (position_6d - old_position)/duration.toSec();
-        velocity = alpha * velocity_raw + (1.0 - alpha) * old_velocity;
+        velocity = velocity_alpha * velocity_raw + (1.0 - velocity_alpha) * old_velocity;
         accel = (velocity - old_velocity)/duration.toSec();
       }
+
       // non static update
       old_jacobian = jacobian;
       old_velocity = velocity;
       old_position = position_6d;
+
+      // ask Mr. Stephen Butterworth to filter our data for us.
+      Eigen::Matrix<double, 6, 1> sensor_fext = butterworth_filter(sensor_fext_raw);
 
       // translate wrench from FT sensor as wrench in EE frame. MR 3.98
       Eigen::Matrix<double, 6, 1> ee_fext = sensor_ee_adjoint.transpose() * sensor_fext;
@@ -321,11 +330,11 @@ int main(int argc, char** argv) {
         base_fext = fext_func(fullCount/1000.0);
       }
 
-      // compute control MR 11.66
-      Eigen::VectorXd ddx_d(6);
-
       //precompute velocity from jacobian for reuse
       Eigen::Matrix<double, 6, 1> jac_vel = jacobian * dq;
+
+      // compute control MR 11.66
+      Eigen::VectorXd ddx_d(6);
       ddx_d << virtual_mass.inverse() * (base_fext - (damping * jac_vel) - (stiffness * error));
 
       // compute boundry acceleration to keep EE in bounds
@@ -376,17 +385,33 @@ int main(int argc, char** argv) {
       // MR 8.1
       tau_task << mass * ddq_d;
 
+      // damp high velocities in the joint space
+      // if (use_velocity_max) {
+      //   Eigen::VectorXd tau_v(7);
+      //   tau_v.setZero();
+      //   Eigen::Array<bool, Eigen::Dynamic, 1> vel_checks = dq.array().abs() > velocity_max.array();
+      //   for (int i = 0; i < vel_checks.size(); ++i) {
+      //     if (vel_checks[i]) {
+      //         double excess = std::abs(dq(i)) - velocity_max(i);
+      //         double sign = (dq(i) > 0) ? 1.0 : -1.0;
+      //         tau_v(i) = -sign * velocity_max_damping(i) * excess;
+      //         std::cout << "Too fast at: " << i << ", speed: " << dq(i) << " damping: " << tau_v(i) << " prev: " << tau_task(i) << std::endl;
+      //     }
+      //   }
+      //   tau_task += tau_v;
+      // }
+
       // coloumb friction
-      double epsilon = config[config_name]["friction_sign_epsilon"];
-      Eigen::VectorXd dq_smooth_sign = dq.array() / (dq.array().square() + epsilon * epsilon).sqrt();
+      Eigen::VectorXd dq_smooth_sign = dq.array() / (dq.array().square() + coulomb_epsilon * coulomb_epsilon).sqrt();
 
       // total friction comp
       tau_friction =  coulomb_frictions.cwiseProduct(dq_smooth_sign) + viscous_frictions.cwiseProduct(dq);
 
       // inverse dynamics, add all control elements together
       tau_d << tau_task + coriolis + tau_friction;
+
       //Spec sheet lists 1000/sec as maximum but in practice should be much lower for smooth human use.
-      double max_torque_accel = 10.0 / 1000;
+      double max_torque_accel = torque_smoothing / 1000;
       for (int i = 0; i < tau_d.size(); ++i) {
         tau_d(i) = std::clamp(tau_d(i), last_task(i) - max_torque_accel, last_task(i) + max_torque_accel);
       }
