@@ -99,6 +99,16 @@ int main(int argc, char** argv) {
 
   double boundry_trans_stiffness = config[config_name]["boundry"]["trans_stiffness"];
   double boundry_rot_stiffness = config[config_name]["boundry"]["rot_stiffness"];
+  double boundry_trans_damping = config[config_name]["boundry"]["trans_damping"];
+  double boundry_rot_damping = config[config_name]["boundry"]["rot_damping"];
+
+  //velocity limits
+  bool use_velocity_max = config[config_name]["use_velocity_max"];
+  std::vector<double> velocity_max_values = config[config_name]["velocity_max"]["max_velocity"];
+  Eigen::VectorXd velocity_max = Eigen::Map<Eigen::VectorXd>(velocity_max_values.data(), velocity_max_values.size());
+
+  std::vector<double> velocity_max_damping_values = config[config_name]["velocity_max"]["damping"];
+  Eigen::VectorXd velocity_max_damping = Eigen::Map<Eigen::VectorXd>(velocity_max_damping_values.data(), velocity_max_damping_values.size());
 
   //connect to sensor
   net_ft_driver::ft_info input;
@@ -257,10 +267,13 @@ int main(int argc, char** argv) {
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
       static Eigen::VectorXd old_velocity = Eigen::VectorXd::Zero(6);
       static Eigen::VectorXd old_position = position_6d;
+      static const double alpha = 0.1;
       
       Eigen::Matrix<double, 6, 7> djacobian;
       Eigen::VectorXd velocity;
+      Eigen::VectorXd velocity_raw;
       Eigen::VectorXd accel;
+      Eigen::VectorXd accel_raw;
       // arbitrary cutoff for no duration, expected duration is 0.001
       if (duration.toSec() < 0.00000001) {
         djacobian.setZero();
@@ -268,7 +281,8 @@ int main(int argc, char** argv) {
         accel.setZero(6);
       } else {
         djacobian = (jacobian - old_jacobian)/duration.toSec();
-        velocity = (position_6d - old_position)/duration.toSec();
+        velocity_raw = (position_6d - old_position)/duration.toSec();
+        velocity = alpha * velocity_raw + (1.0 - alpha) * old_velocity;
         accel = (velocity - old_velocity)/duration.toSec();
       }
       // non static update
@@ -309,7 +323,10 @@ int main(int argc, char** argv) {
 
       // compute control MR 11.66
       Eigen::VectorXd ddx_d(6);
-      ddx_d << virtual_mass.inverse() * (base_fext - (damping * (jacobian * dq)) - (stiffness * error));
+
+      //precompute velocity from jacobian for reuse
+      Eigen::Matrix<double, 6, 1> jac_vel = jacobian * dq;
+      ddx_d << virtual_mass.inverse() * (base_fext - (damping * jac_vel) - (stiffness * error));
 
       // compute boundry acceleration to keep EE in bounds
       if (use_boundry) {
@@ -321,13 +338,29 @@ int main(int argc, char** argv) {
         ddx_b.setZero();
         // if out of bounds anywhere, apply corrective force and damp user movement
         if ((correction.head(3).array().abs() > 0.001).any()) {
-            ddx_b.head(3) = -correction.head(3) * boundry_trans_stiffness - 3.0 * std::sqrt(boundry_trans_stiffness) * (jacobian * dq).head(3);
+            ddx_b.head(3) = -correction.head(3) * boundry_trans_stiffness - boundry_trans_damping * jac_vel.head(3);
         }
         if ((correction.tail(3).array().abs() > 0.001).any()) {
-            ddx_b.tail(3) = -correction.tail(3) * boundry_rot_stiffness - 1.0 * std::sqrt(boundry_rot_stiffness) * (jacobian * dq).tail(3);
+            ddx_b.tail(3) = -correction.tail(3) * boundry_rot_stiffness - boundry_rot_damping * jac_vel.tail(3);
         }
 
         ddx_d += ddx_b;
+      }
+
+      // apply damping above maximum velocity if we are too fast
+      if (use_velocity_max) {
+        Eigen::VectorXd ddx_v(6);
+        ddx_v.setZero();
+        Eigen::Array<bool, Eigen::Dynamic, 1> vel_checks = velocity.array().abs() > velocity_max.array();
+        for (int i = 0; i < vel_checks.size(); ++i) {
+          if (vel_checks[i]) {
+              double excess = std::abs(velocity(i)) - velocity_max(i);
+              double sign = (velocity(i) > 0) ? 1.0 : -1.0;
+              ddx_v(i) = -sign * velocity_max_damping(i) * excess;
+              std::cout << "Too fast at: " << i << ", speed: " << velocity(i) << " damping: " << ddx_v(i) << " prev: " << ddx_d(i) << std::endl;
+          }
+        }
+        ddx_d += ddx_v;
       }
 
       Eigen::VectorXd tau_task(7), tau_d(7), tau_friction(7);
