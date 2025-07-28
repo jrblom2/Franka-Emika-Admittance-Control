@@ -87,10 +87,11 @@ int main(int argc, char** argv) {
   Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
 
   //friction comp
-  double coulomb_epsilon = config[config_name]["friction_sign_epsilon"];
-  std::vector<double> coulomb_values = config[config_name]["friction_coulomb"];
+  bool use_friction_comp = config[config_name]["use_friction_comp"];
+  double coulomb_epsilon = config[config_name]["friction_comp"]["friction_sign_epsilon"];
+  std::vector<double> coulomb_values = config[config_name]["friction_comp"]["friction_coulomb"];
   Eigen::VectorXd coulomb_frictions = Eigen::Map<Eigen::VectorXd>(coulomb_values.data(), coulomb_values.size());
-  std::vector<double> viscous_values = config[config_name]["friction_viscous"];
+  std::vector<double> viscous_values = config[config_name]["friction_comp"]["friction_viscous"];
   Eigen::VectorXd viscous_frictions = Eigen::Map<Eigen::VectorXd>(viscous_values.data(), viscous_values.size());
 
   //boundry conditions
@@ -178,29 +179,51 @@ int main(int argc, char** argv) {
       return set;
     };
 
-    auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
-        Eigen::Matrix<double, 6, 1> fext_dummy;
-        fext_dummy << 0.0,
-              (std::sin(t  * 2 * M_PI / 4.0)),
-              0.0,
-              0.0,
-              0.0,
-              0.0;
-        return fext_dummy;
+    // auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
+    //     Eigen::Matrix<double, 6, 1> fext_dummy;
+    //     fext_dummy << 0.0,
+    //           (std::sin(t  * 2 * M_PI / 4.0)),
+    //           0.0,
+    //           0.0,
+    //           0.0,
+    //           0.0;
+    //     return fext_dummy;
 
+    // };
+    auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
+      Eigen::Matrix<double, 6, 1> fext_dummy;
+
+      // Chirp parameters
+      double f0 = 0.1;      // Start frequency (Hz)
+      double f1 = 5.0;      // End frequency (Hz)
+      double T = 30.0;      // Chirp duration (seconds)
+      double k = (f1 - f0) / T;
+
+      // Compute chirp phase: φ(t) = 2π(f0 * t + 0.5 * k * t^2)
+      double phi = 2 * M_PI * (f0 * t + 0.5 * k * t * t);
+
+      // Chirp amplitude (optional scaling)
+      double amplitude = 1.0;
+
+      fext_dummy << 0.0,
+                    amplitude * std::sin(phi),  // chirp in y-direction
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0;
+
+      return fext_dummy;
     };
     Eigen::Matrix<double, 6, 1> x0_vec;
     x0_vec << position_d, 0.0, 0.0, 0.0;
 
-    Eigen::MatrixXd damping_sim = damping;
-    // damping_sim(1,1) = 16.0;
     std::vector<Eigen::Matrix<double, 6, 1>> expected_pos;
     std::vector<Eigen::Matrix<double, 6, 1>> expected_vel;
     std::vector<Eigen::Matrix<double, 6, 1>> expected_accel;
     trajectory_6d sim_traj = spring_simulate_6d(
       x0_vec,
       stiffness,
-      damping_sim,
+      damping,
       virtual_mass,
       fext_func,
       set_point_func_sim);
@@ -297,7 +320,8 @@ int main(int argc, char** argv) {
       old_position = position_6d;
 
       // ask Mr. Stephen Butterworth to filter our data for us.
-      Eigen::Matrix<double, 6, 1> sensor_fext = butterworth_filter(sensor_fext_raw);
+      Eigen::Matrix<double, 6, 1> sensor_fext = sensor_fext_raw;
+      // Eigen::Matrix<double, 6, 1> sensor_fext = butterworth_filter(sensor_fext_raw);
 
       // translate wrench from FT sensor as wrench in EE frame. MR 3.98
       Eigen::Matrix<double, 6, 1> ee_fext = sensor_ee_adjoint.transpose() * sensor_fext;
@@ -372,7 +396,7 @@ int main(int argc, char** argv) {
         ddx_d += ddx_v;
       }
 
-      Eigen::VectorXd tau_task(7), tau_d(7), tau_friction(7);
+      Eigen::VectorXd tau_task(7), tau_d(7);
       static Eigen::VectorXd last_task = Eigen::VectorXd::Zero(7);
 
       // MR 6.7 weighted pseudoinverse
@@ -401,14 +425,17 @@ int main(int argc, char** argv) {
       //   tau_task += tau_v;
       // }
 
-      // coloumb friction
-      Eigen::VectorXd dq_smooth_sign = dq.array() / (dq.array().square() + coulomb_epsilon * coulomb_epsilon).sqrt();
-
-      // total friction comp
-      tau_friction =  coulomb_frictions.cwiseProduct(dq_smooth_sign) + viscous_frictions.cwiseProduct(dq);
-
       // inverse dynamics, add all control elements together
-      tau_d << tau_task + coriolis + tau_friction;
+      tau_d << tau_task + coriolis;
+
+      if (use_friction_comp) {
+        Eigen::VectorXd tau_friction(7);
+        Eigen::VectorXd dq_smooth_sign = dq.array() / (dq.array().square() + coulomb_epsilon * coulomb_epsilon).sqrt();
+
+        // total friction comp
+        tau_friction =  coulomb_frictions.cwiseProduct(dq_smooth_sign) + viscous_frictions.cwiseProduct(dq);
+        tau_d += tau_friction;
+      }
 
       //Spec sheet lists 1000/sec as maximum but in practice should be much lower for smooth human use.
       double max_torque_accel = torque_smoothing / 1000;
