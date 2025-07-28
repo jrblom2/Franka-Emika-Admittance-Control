@@ -214,6 +214,7 @@ int main(int argc, char** argv) {
 
       return fext_dummy;
     };
+    
     Eigen::Matrix<double, 6, 1> x0_vec;
     x0_vec << position_d, 0.0, 0.0, 0.0;
 
@@ -428,8 +429,9 @@ int main(int argc, char** argv) {
       // inverse dynamics, add all control elements together
       tau_d << tau_task + coriolis;
 
+      Eigen::VectorXd tau_friction(7);
+      tau_friction.setZero();
       if (use_friction_comp) {
-        Eigen::VectorXd tau_friction(7);
         Eigen::VectorXd dq_smooth_sign = dq.array() / (dq.array().square() + coulomb_epsilon * coulomb_epsilon).sqrt();
 
         // total friction comp
