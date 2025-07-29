@@ -15,7 +15,7 @@ data_dir = args.data_dir
 # Constants
 output_dir = os.path.join(data_dir, 'plots')
 os.makedirs(output_dir, exist_ok=True)
-sampling_rate = 100
+sampling_rate = 1000
 
 
 # Generic single file plotter

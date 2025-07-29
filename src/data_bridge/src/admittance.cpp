@@ -195,8 +195,8 @@ int main(int argc, char** argv) {
 
       // Chirp parameters
       double f0 = 0.1;      // Start frequency (Hz)
-      double f1 = 5.0;      // End frequency (Hz)
-      double T = 30.0;      // Chirp duration (seconds)
+      double f1 = 20.0;      // End frequency (Hz)
+      double T = 60.0;      // Chirp duration (seconds)
       double k = (f1 - f0) / T;
 
       // Compute chirp phase: φ(t) = 2π(f0 * t + 0.5 * k * t^2)
@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
 
       return fext_dummy;
     };
-    
+
     Eigen::Matrix<double, 6, 1> x0_vec;
     x0_vec << position_d, 0.0, 0.0, 0.0;
 
@@ -462,7 +462,7 @@ int main(int argc, char** argv) {
       }
       fullCount++;
 
-      if (count == 10) {
+      if (count == 1) {
         queue_package new_package;
         new_package.desired_accel = Eigen::Matrix<double, 6, 1>(ddx_d);
         new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(base_fext);

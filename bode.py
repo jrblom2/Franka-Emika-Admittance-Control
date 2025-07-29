@@ -1,68 +1,117 @@
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import welch, csd, TransferFunction, bode
+import csv
+from scipy.signal import chirp, cont2discrete, lfilter
+import pandas as pd
 
-dir = 'data/data_2025-07-28_12-55-55/'
+
+CSV_FILE = 'data/1Hz_new/05.csv'
+max_freq_ = 11
+
+# csv = pd.read_csv(CSV_FILE, sep="\t").to_numpy()
+# print("Done!")
+# print(csv.shape)
+
+dir = 'data/data_2025-07-28_14-08-15/'
 
 # === Load CSVs with no headers ===
 wrench_df = pd.read_csv(dir + "actual_wrench.csv", header=None)
 vel_df = pd.read_csv(dir + "velocity.csv", header=None)
 
-# === Sampling settings ===
-dt = 0.01  # Time step in seconds
-fs = 1.0 / dt  # Sampling frequency in Hz
-N = len(wrench_df)
-
-# === Reconstruct time vector ===
-time = np.arange(N) * dt
-
-# === Extract column 1 (Y-axis) ===
 force_y = wrench_df.iloc[:, 1].values
 vel_y = vel_df.iloc[:, 1].values
 
-# === Estimate transfer function H(f) = Pxy / Pxx ===
-f, Pxy = csd(vel_y, force_y, fs=fs, nperseg=1024)
-_, Pxx = welch(force_y, fs=fs, nperseg=1024)
-H = Pxy / (Pxx + 1e-12)  # Avoid divide-by-zero
+# lim = -1
+# start = 0
 
-# === Bode plot data (measured) ===
-magnitude = 20 * np.log10(np.abs(H))
-phase = np.angle(H, deg=True)
 
-# === Define virtual admittance parameters ===
-M = 0.75  # virtual mass (kg), adjust as needed
-B = 5.0  # virtual damping (N.s/m), adjust as needed
+# times = csv[start:lim, 0]
+# target_q = csv[start:lim, 1]
+# target_d = np.zeros([target_q.size])
+# meas_q = csv[start:lim, 2]
+# meas_d = csv[start:lim, 3]
+# volts_a = csv[start:lim, 4]
+# volts_b = csv[start:lim, 5]
+# volts_c = csv[start:lim, 6]
 
-# === Create transfer function for ideal system: H(s) = 1 / (M s + B) ===
-num = [1.0]
-den = [M, B]
-system = TransferFunction(num, den)
 
-# Frequencies for theoretical plot (radians per second)
-w_ideal = 2 * np.pi * f  # Convert Hz to rad/s
+def compute_frequency_response(input_signal, output_signal, fs):
+    """
+    Computes frequency response H(f) = Y(f) / X(f)
+    input_signal: Excitation chirp
+    output_signal: System response to chirp
+    fs: Sampling frequency
+    """
+    n = len(input_signal)
+    # Ensure both signals are the same length
+    input_signal = input_signal[:n]
+    output_signal = output_signal[:n]
 
-# Compute ideal bode plot at frequencies w_ideal
-_, mag_ideal, phase_ideal = bode(system, w_ideal)
+    # FFT of input and output
+    X = np.fft.fft(input_signal)
+    Y = np.fft.fft(output_signal)
 
-# === Plot both measured and ideal bode plots ===
-plt.figure(figsize=(10, 6))
+    # Frequency response
+    H = Y / X
+
+    # Frequency vector
+    freqs = np.fft.fftfreq(n, d=1 / fs)
+
+    return freqs[: n // 2], H[: n // 2]  # Return only positive frequencies
+
+
+fs = 1000
+
+# Compute frequency response
+freqs, H = compute_frequency_response(force_y, vel_y, fs)
+
+# Plot magnitude and phase
+plt.figure(figsize=(12, 6))
 
 plt.subplot(2, 1, 1)
-plt.semilogx(f, magnitude, label='Measured', color='blue')
-plt.semilogx(f, mag_ideal, label='Ideal (1/(Ms+B))', color='orange', linestyle='--')
-plt.ylabel("Magnitude (dB)")
-plt.title("Bode Plot: Force_Y → Velocity_Y")
-plt.grid(True, which="both")
-plt.legend()
+plt.loglog(freqs, np.abs(H))
+plt.title("Frequency Response")
+plt.ylabel("Amplitude Ratio")
+plt.xlim([0.1, max_freq_])
+plt.grid(True)
 
 plt.subplot(2, 1, 2)
-plt.semilogx(f, phase, label='Measured', color='blue')
-plt.semilogx(f, phase_ideal, label='Ideal (1/(Ms+B))', color='orange', linestyle='--')
+plt.semilogx(freqs, np.angle(H))
 plt.xlabel("Frequency (Hz)")
-plt.ylabel("Phase (degrees)")
-plt.grid(True, which="both")
-plt.legend()
+plt.ylabel("Phase (radians)")
+plt.xlim([0.1, max_freq_])
+plt.grid(True)
 
 plt.tight_layout()
 plt.show()
+
+
+# rms_d = np.sqrt(np.mean(meas_d * meas_d))
+# print(rms_d)
+
+# plt.subplot(3, 1, 1)
+# plt.plot(times, target_q)
+# plt.plot(times, meas_q)
+# plt.title("Requested vs Measured Current", fontsize=30)
+# # plt.xlabel("Time [s]", fontsize=30)
+# plt.ylabel("Current [A]", fontsize=30)
+# plt.legend(["Requested", "Measured"], fontsize=30)
+# # plt.show()
+
+
+# plt.subplot(3, 1, 2)
+# plt.plot(times, target_d)
+# plt.plot(times, meas_d)
+# plt.title("Requested vs Measured Current", fontsize=30)
+# plt.ylabel("Current [A]", fontsize=30)
+# plt.legend(["Requested", "Measured"], fontsize=30)
+
+# plt.subplot(3, 1, 3)
+# plt.plot(times, volts_a)
+# plt.plot(times, volts_b)
+# plt.plot(times, volts_c)
+# plt.title("Phase Voltages vs Time", fontsize=30)
+# plt.xlabel("Time [s]", fontsize=30)
+# plt.ylabel("Phase Voltages [V]", fontsize=30)
+# plt.legend(["A", "B", "C"], fontsize=30)
+# plt.show()
