@@ -195,8 +195,8 @@ int main(int argc, char** argv) {
 
       // Chirp parameters
       double f0 = 0.1;      // Start frequency (Hz)
-      double f1 = 20.0;      // End frequency (Hz)
-      double T = 60.0;      // Chirp duration (seconds)
+      double f1 = 100.0;      // End frequency (Hz)
+      double T = 30.0;      // Chirp duration (seconds)
       double k = (f1 - f0) / T;
 
       // Compute chirp phase: φ(t) = 2π(f0 * t + 0.5 * k * t^2)
@@ -206,8 +206,8 @@ int main(int argc, char** argv) {
       double amplitude = 1.0;
 
       fext_dummy << 0.0,
-                    amplitude * std::sin(phi),  // chirp in y-direction
                     0.0,
+                    amplitude * std::sin(phi),
                     0.0,
                     0.0,
                     0.0;
@@ -353,6 +353,7 @@ int main(int argc, char** argv) {
       }
       if (config[config_name]["use_dummy_force"]) {
         base_fext = fext_func(fullCount/1000.0);
+        std::cout << "Time: " << fullCount/1000.0 << std::endl;
       }
 
       //precompute velocity from jacobian for reuse
