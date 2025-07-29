@@ -32,8 +32,8 @@
     "admittance_test": {
         "torque_smoothing": 100.0,
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        "damping": [1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
-        "mass": [1.0, 1.0, 1.0, 2.5, 2.5, 2.5],
+        "damping": [1.0, 1.0, 1.0, 0.1, 0.1, 0.1],
+        "mass": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         "joint_weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         "use_dummy_force": true,
         "swap_torque": false,

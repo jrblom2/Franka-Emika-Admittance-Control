@@ -207,8 +207,8 @@ int main(int argc, char** argv) {
 
       fext_dummy << 0.0,
                     0.0,
-                    amplitude * std::sin(phi),
                     0.0,
+                    amplitude * std::sin(phi),
                     0.0,
                     0.0;
 
