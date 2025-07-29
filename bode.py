@@ -4,13 +4,7 @@ import csv
 from scipy.signal import chirp, cont2discrete, lfilter
 import pandas as pd
 
-
-CSV_FILE = 'data/1Hz_new/05.csv'
 max_freq_ = 11
-
-# csv = pd.read_csv(CSV_FILE, sep="\t").to_numpy()
-# print("Done!")
-# print(csv.shape)
 
 dir = 'data/data_2025-07-28_14-08-15/'
 
@@ -20,19 +14,6 @@ vel_df = pd.read_csv(dir + "velocity.csv", header=None)
 
 force_y = wrench_df.iloc[:, 1].values
 vel_y = vel_df.iloc[:, 1].values
-
-# lim = -1
-# start = 0
-
-
-# times = csv[start:lim, 0]
-# target_q = csv[start:lim, 1]
-# target_d = np.zeros([target_q.size])
-# meas_q = csv[start:lim, 2]
-# meas_d = csv[start:lim, 3]
-# volts_a = csv[start:lim, 4]
-# volts_b = csv[start:lim, 5]
-# volts_c = csv[start:lim, 6]
 
 
 def compute_frequency_response(input_signal, output_signal, fs):
@@ -84,34 +65,3 @@ plt.grid(True)
 
 plt.tight_layout()
 plt.show()
-
-
-# rms_d = np.sqrt(np.mean(meas_d * meas_d))
-# print(rms_d)
-
-# plt.subplot(3, 1, 1)
-# plt.plot(times, target_q)
-# plt.plot(times, meas_q)
-# plt.title("Requested vs Measured Current", fontsize=30)
-# # plt.xlabel("Time [s]", fontsize=30)
-# plt.ylabel("Current [A]", fontsize=30)
-# plt.legend(["Requested", "Measured"], fontsize=30)
-# # plt.show()
-
-
-# plt.subplot(3, 1, 2)
-# plt.plot(times, target_d)
-# plt.plot(times, meas_d)
-# plt.title("Requested vs Measured Current", fontsize=30)
-# plt.ylabel("Current [A]", fontsize=30)
-# plt.legend(["Requested", "Measured"], fontsize=30)
-
-# plt.subplot(3, 1, 3)
-# plt.plot(times, volts_a)
-# plt.plot(times, volts_b)
-# plt.plot(times, volts_c)
-# plt.title("Phase Voltages vs Time", fontsize=30)
-# plt.xlabel("Time [s]", fontsize=30)
-# plt.ylabel("Phase Voltages [V]", fontsize=30)
-# plt.legend(["A", "B", "C"], fontsize=30)
-# plt.show()
