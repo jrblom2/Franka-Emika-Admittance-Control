@@ -351,7 +351,7 @@ int main(int argc, char** argv) {
 
       // Clamp fext to help prevent off-phase run away
       base_fext = base_fext.unaryExpr([](double x) {
-          return std::clamp(x, -10.0, 10.0);
+          return std::clamp(x, -7.5, 7.5);
       });
 
       if (config[config_name]["swap_torque"]) {
