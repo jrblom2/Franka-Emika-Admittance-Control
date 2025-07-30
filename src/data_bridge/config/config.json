@@ -39,8 +39,8 @@
         "swap_torque": false,
         "use_friction_comp": false,
         "friction_comp": {
-            "friction_coulomb": [0.0, 0.0, 0.50, 0.0, 0.0, 0.0, 0.0],
-            "friction_viscous": [0.0, 0.0, 2.2, 0.0, 0.0, 0.0, 0.0],
+            "friction_coulomb": [0.45, 0.55, 0.45, 0.55, 0.10, 0.10, 0.10],
+            "friction_viscous": [2.0, 1.0, 2.0, 1.0, 0.0, 0.0, 0.0],
             "friction_sign_epsilon": 0.01
         },
         "use_boundry": false,
