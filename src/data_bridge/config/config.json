@@ -3,8 +3,8 @@
     "admittance": {
         "torque_smoothing": 100.0,
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        "damping": [1.0, 1.0, 1.0, 0.1, 0.1, 0.1],
-        "mass": [3.0, 3.0, 3.0, 1.5, 1.5, 1.5],
+        "damping": [1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        "mass": [3.0, 3.0, 3.0, 1.0, 1.0, 1.0],
         "joint_weight": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         "use_dummy_force": false,
         "swap_torque": false,
@@ -14,19 +14,19 @@
             "friction_viscous": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             "friction_sign_epsilon": 0.01
         },
-        "use_boundry": false,
+        "use_boundry": true,
         "boundry": {
             "min": [0.30, -0.25, 0.40, -1.0, -1.0, -1.57],
             "max": [0.60,  0.25, 0.80, 1.0, 1.0, 1.57],
-            "trans_stiffness": 120.0,
-            "trans_damping": 30.0,
+            "trans_stiffness": 200.0,
+            "trans_damping": 25.0,
             "rot_stiffness": 20.0,
             "rot_damping": 5.0
         },
-        "use_velocity_max": false,
+        "use_velocity_max": true,
         "velocity_max": {
-            "max_velocity": [0.4, 0.4, 0.4, 0.5, 0.5, 0.5],
-            "damping": [20.0, 20.0, 20.0, 1.0, 1.0, 1.0]
+            "max_velocity": [0.3, 0.4, 0.2, 0.5, 0.5, 0.5],
+            "damping": [45.0, 45.0, 45.0, 1.5, 1.5, 1.5]
         }
     },
     "admittance_test": {

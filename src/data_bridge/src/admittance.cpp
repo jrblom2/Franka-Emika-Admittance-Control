@@ -120,9 +120,9 @@ int main(int argc, char** argv) {
   net_ft_driver::ft_info input;
   input.ip_address = "192.168.18.12";
   input.sensor_type = "ati_axia";
-  input.rdt_sampling_rate = 1000;
+  input.rdt_sampling_rate = 2000;
   input.use_biasing = "true";
-  input.internal_filter_rate = 4;
+  input.internal_filter_rate = 5;
   net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
 
   // setup sensor transform
@@ -151,6 +151,9 @@ int main(int argc, char** argv) {
   std::thread spin_thread;
   SafeQueue<queue_package> transfer_package;
   std::vector<queue_package> dump_vector;
+
+  // reserve space for 100 seconds, will probably crash at the resize?
+  dump_vector.reserve(100000);
 
   try {
     // connect to robot
@@ -346,6 +349,11 @@ int main(int argc, char** argv) {
       ee_base_adjoint.bottomRightCorner(3,3) << transform.rotation().transpose();
       Eigen::Matrix<double, 6, 1> base_fext = ee_base_adjoint.transpose() * ee_fext;
 
+      // Clamp fext to help prevent off-phase run away
+      base_fext = base_fext.unaryExpr([](double x) {
+          return std::clamp(x, -10.0, 10.0);
+      });
+
       if (config[config_name]["swap_torque"]) {
         base_fext(3) = -base_fext(3);
         base_fext(4) = -base_fext(4);
@@ -392,7 +400,6 @@ int main(int argc, char** argv) {
               double excess = std::abs(velocity(i)) - velocity_max(i);
               double sign = (velocity(i) > 0) ? 1.0 : -1.0;
               ddx_v(i) = -sign * velocity_max_damping(i) * excess;
-              std::cout << "Too fast at: " << i << ", speed: " << velocity(i) << " damping: " << ddx_v(i) << " prev: " << ddx_d(i) << std::endl;
           }
         }
         ddx_d += ddx_v;
@@ -449,17 +456,17 @@ int main(int argc, char** argv) {
 
       if (count == 1) {
         queue_package new_package;
-        new_package.desired_accel = Eigen::Matrix<double, 6, 1>(ddx_d);
-        new_package.actual_wrench = Eigen::Matrix<double, 6, 1>(base_fext);
-        new_package.orientation_error = Eigen::Matrix<double, 3, 1>(orientation_error_axis_angle);
-        new_package.translation = Eigen::Vector3d(position);
-        new_package.translation_d = Eigen::Vector3d(predicted.head(3));
+        new_package.desired_accel = ddx_d;
+        new_package.actual_wrench = base_fext;
+        new_package.orientation_error = orientation_error_axis_angle;
+        new_package.translation = position;
+        new_package.translation_d = predicted.head(3);
         new_package.velocity = velocity;
         new_package.accel = accel;
         new_package.torques_d = tau_d;
-        new_package.torques_o = tau_J_d.reshaped();
-        new_package.torques_c = coriolis.reshaped();
-        new_package.torques_g = tau_J.reshaped() - gravity.reshaped();
+        new_package.torques_o = tau_J_d;
+        new_package.torques_c = coriolis;
+        new_package.torques_g = tau_J - gravity;
         new_package.torques_f = tau_friction;
         new_package.ddq_d = ddq_d;
         new_package.dq = dq;
