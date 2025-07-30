@@ -3,9 +3,9 @@
 // Filter order
 constexpr int order = 2;
 
-// Filter coefficients from Python, 2nd order with 1000 sampling rate and 5hz cutoff
-const std::array<double, 3> b = {0.0000391302054, 0.0000782604108, 0.0000391302054};
-const std::array<double, 3> a = {1.0, -1.98222893, 0.98238545};
+// Filter coefficients from Python, 2nd order with 1000 sampling rate and 10hz cutoff
+const std::array<double, 3> b = {0.00094469, 0.00188938, 0.00094469};
+const std::array<double, 3> a = {1.0, -1.91119707, 0.91497583};
 
 // Buffers (history)
 static std::array<Eigen::Matrix<double, 6, 1>, 3> x_history = {};

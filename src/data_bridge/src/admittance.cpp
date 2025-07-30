@@ -116,13 +116,13 @@ int main(int argc, char** argv) {
   std::vector<double> velocity_max_damping_values = config[config_name]["velocity_max"]["damping"];
   Eigen::VectorXd velocity_max_damping = Eigen::Map<Eigen::VectorXd>(velocity_max_damping_values.data(), velocity_max_damping_values.size());
 
-  //connect to sensor, see data sheet for filter selection based on sampling rate. Manual filter works better.
+  //connect to sensor, see data sheet for filter selection based on sampling rate.
   net_ft_driver::ft_info input;
   input.ip_address = "192.168.18.12";
   input.sensor_type = "ati_axia";
   input.rdt_sampling_rate = 1000;
   input.use_biasing = "true";
-  input.internal_filter_rate = 0;
+  input.internal_filter_rate = 4;
   net_ft_driver::NetFtHardwareInterface sensor = net_ft_driver::NetFtHardwareInterface(input);
 
   // setup sensor transform
@@ -179,41 +179,41 @@ int main(int argc, char** argv) {
       return set;
     };
 
-    // auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
-    //     Eigen::Matrix<double, 6, 1> fext_dummy;
-    //     fext_dummy << 0.0,
-    //           (std::sin(t  * 2 * M_PI / 4.0)),
-    //           0.0,
-    //           0.0,
-    //           0.0,
-    //           0.0;
-    //     return fext_dummy;
-
-    // };
     auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
-      Eigen::Matrix<double, 6, 1> fext_dummy;
+        Eigen::Matrix<double, 6, 1> fext_dummy;
+        fext_dummy << (std::sin(t  * 2 * M_PI / 4.0)),
+              (std::sin(t  * 2 * M_PI / 4.0)),
+              (std::sin(t  * 2 * M_PI / 4.0)),
+              0.0,
+              0.0,
+              0.0;
+        return fext_dummy;
 
-      // Chirp parameters
-      double f0 = 0.1;      // Start frequency (Hz)
-      double f1 = 100.0;      // End frequency (Hz)
-      double T = 30.0;      // Chirp duration (seconds)
-      double k = (f1 - f0) / T;
-
-      // Compute chirp phase: φ(t) = 2π(f0 * t + 0.5 * k * t^2)
-      double phi = 2 * M_PI * (f0 * t + 0.5 * k * t * t);
-
-      // Chirp amplitude (optional scaling)
-      double amplitude = 1.0;
-
-      fext_dummy << 0.0,
-                    0.0,
-                    0.0,
-                    amplitude * std::sin(phi),
-                    0.0,
-                    0.0;
-
-      return fext_dummy;
     };
+    // auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
+    //   Eigen::Matrix<double, 6, 1> fext_dummy;
+
+    //   // Chirp parameters
+    //   double f0 = 0.1;      // Start frequency (Hz)
+    //   double f1 = 100.0;      // End frequency (Hz)
+    //   double T = 30.0;      // Chirp duration (seconds)
+    //   double k = (f1 - f0) / T;
+
+    //   // Compute chirp phase: φ(t) = 2π(f0 * t + 0.5 * k * t^2)
+    //   double phi = 2 * M_PI * (f0 * t + 0.5 * k * t * t);
+
+    //   // Chirp amplitude (optional scaling)
+    //   double amplitude = 1.0;
+
+    //   fext_dummy << 0.0,
+    //                 0.0,
+    //                 0.0,
+    //                 amplitude * std::sin(phi),
+    //                 0.0,
+    //                 0.0;
+
+    //   return fext_dummy;
+    // };
 
     Eigen::Matrix<double, 6, 1> x0_vec;
     x0_vec << position_d, 0.0, 0.0, 0.0;
@@ -410,22 +410,6 @@ int main(int argc, char** argv) {
       
       // MR 8.1
       tau_task << mass * ddq_d;
-
-      // damp high velocities in the joint space
-      // if (use_velocity_max) {
-      //   Eigen::VectorXd tau_v(7);
-      //   tau_v.setZero();
-      //   Eigen::Array<bool, Eigen::Dynamic, 1> vel_checks = dq.array().abs() > velocity_max.array();
-      //   for (int i = 0; i < vel_checks.size(); ++i) {
-      //     if (vel_checks[i]) {
-      //         double excess = std::abs(dq(i)) - velocity_max(i);
-      //         double sign = (dq(i) > 0) ? 1.0 : -1.0;
-      //         tau_v(i) = -sign * velocity_max_damping(i) * excess;
-      //         std::cout << "Too fast at: " << i << ", speed: " << dq(i) << " damping: " << tau_v(i) << " prev: " << tau_task(i) << std::endl;
-      //     }
-      //   }
-      //   tau_task += tau_v;
-      // }
 
       // inverse dynamics, add all control elements together
       tau_d << tau_task + coriolis;
