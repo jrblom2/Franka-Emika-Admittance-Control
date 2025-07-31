@@ -19,6 +19,7 @@ https://www.ati-ia.com/products/ft/ft_models.aspx?id=Axia80-M8
 ## Workflow
 1. Run ```./move.sh``` to copy project files to project directory on workstation. Mush have SSH key added to workstation otherwise you might be prompted.
 2. On workstation, run ```colcon build``` to build the project in the space it will be run.
+3. ```./pull_data {data_dir}``` can be used to pull the data logs and plot them from the remote, "latest" can be provided in place of the directory to get the most recent execution logs.
 
 ## Running
 
@@ -32,7 +33,7 @@ Run the executables with
 
 Available executables are as follows and all require the robot IP:
 
-`admittance`: the primary point of the project. Sets up sensor and uses data to perform admittance control while keeping the EE locked to XYZ only. So no roll, pitch, or yaw. Additionally takes an option for what mode to run: TRACK is the defualt behavior while SPRING and SPRINGDEMO can be used for testing.
+`admittance {config_name} {ROS_publish?}`: the primary point of the project. Sets up sensor and uses data to perform admittance control. The name of a config to control the behavior must be specified as well as whether or not data should additionally be published over ROS. May impact performance at high Hz, values are "TRUE" or "FALSE".
 
 `white_light`: impedance control example
 
@@ -40,7 +41,7 @@ Available executables are as follows and all require the robot IP:
 
 ## ROS2 Integration
 
-The admittance executable currently publishes a large selection of data over the `/robot_data` topic to allow other systems to perform analysis. The data_analysis package in this project is a simple plotting package that can be used for this analysis so long as it is run on any computer on the robots network.
+The admittance executable can optionally publish a large selection of data over the `/robot_data` topic to allow other systems to perform analysis. The data_analysis package in this project is a simple plotting package that can be used for this analysis so long as it is run on any computer on the robots network.
 
 To pull up the live plots of the robots state and the control loop torques run:
 
