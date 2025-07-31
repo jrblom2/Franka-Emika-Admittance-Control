@@ -66,6 +66,8 @@ int main(int argc, char** argv) {
   //how fast the torque is allowed to change
   double torque_smoothing = config[config_name]["torque_smoothing"];
 
+  double force_limit = config[config_name]["force_limit"];
+
   //stiffness
   std::vector<double> stiffness_values = config[config_name]["stiffness"];
   Eigen::VectorXd stiffness_vec = Eigen::Map<Eigen::VectorXd>(stiffness_values.data(), stiffness_values.size());
@@ -351,7 +353,7 @@ int main(int argc, char** argv) {
 
       // Clamp fext to help prevent off-phase run away
       base_fext = base_fext.unaryExpr([](double x) {
-          return std::clamp(x, -7.5, 7.5);
+          return std::clamp(x, -force_limit, force_limit);
       });
 
       if (config[config_name]["swap_torque"]) {

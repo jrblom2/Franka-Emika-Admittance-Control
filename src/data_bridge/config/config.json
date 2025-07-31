@@ -2,6 +2,7 @@
     "robot_ip": "panda0.robot",
     "normal": {
         "torque_smoothing": 100.0,
+        "force_limit": 7.5,
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "damping": [1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
         "mass": [3.0, 3.0, 3.0, 1.0, 1.0, 1.0],
@@ -31,6 +32,7 @@
     },
     "test": {
         "torque_smoothing": 100.0,
+        "force_limit": 7.5,
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         "damping": [1.0, 1.0, 1.0, 0.1, 0.1, 0.1],
         "mass": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
@@ -59,6 +61,7 @@
         }
     },
     "fixed": {
+        "force_limit": 7.5,
         "torque_smoothing": 100.0,
         "stiffness": [0.0, 0.0, 0.0, 50.0, 50.0, 50.0],
         "damping": [1.0, 1.0, 1.0, 10.0, 10.0, 10.0],
@@ -75,7 +78,7 @@
         "use_boundry": true,
         "boundry": {
             "min": [0.30, -0.25, 0.40, -1.0, -1.0, -1.57],
-            "max": [0.60,  0.25, 0.80, 1.0, 1.0, 1.57],
+            "max": [0.75,  0.25, 0.80, 1.0, 1.0, 1.57],
             "trans_stiffness": 200.0,
             "trans_damping": 25.0,
             "rot_stiffness": 20.0,
