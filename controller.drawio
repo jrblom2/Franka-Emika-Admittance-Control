@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0" version="28.0.5">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0" version="28.0.6">
   <diagram name="Page-1" id="zEqlK7t6ldvu853xDJui">
     <mxGraphModel dx="1360" dy="1865" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
       <root>
@@ -16,7 +16,7 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="jYTH6Jz3JsOvPJAKBcka-4" value="&lt;div&gt;Inverse Dynamics (MR 11.36)&lt;/div&gt;&lt;div&gt;$$M(\theta)\ddot{\theta} + C(\theta, \dot{\theta})\dot{\theta} + G(\theta, \dot{\theta})\dot{\theta} + F(\theta, \dot{\theta})$$&lt;br&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="365" y="540" width="270" height="90" as="geometry" />
+          <mxGeometry x="366.25" y="560" width="270" height="90" as="geometry" />
         </mxCell>
         <mxCell id="jYTH6Jz3JsOvPJAKBcka-73" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="jYTH6Jz3JsOvPJAKBcka-5" target="jYTH6Jz3JsOvPJAKBcka-1" edge="1">
           <mxGeometry relative="1" as="geometry">
@@ -43,14 +43,14 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="jYTH6Jz3JsOvPJAKBcka-6" value="EE Accel to \(\ddot{\theta}\)&lt;br&gt;\(J^{\dagger}_W(\theta) = W^{-1} J(\theta)^T \left( J(\theta) W^{-1} J(\theta)^T \right)^{-1}\)&lt;br&gt;\(J^{\dagger}_W(\theta) \left( \ddot{q} - \dot{J}(\theta, \dot{\theta}) \dot{\theta} \right)&lt;br&gt;\)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="355" y="410" width="290" height="90" as="geometry" />
+          <mxGeometry x="356.25" y="430" width="290" height="90" as="geometry" />
         </mxCell>
         <mxCell id="jYTH6Jz3JsOvPJAKBcka-54" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="jYTH6Jz3JsOvPJAKBcka-1" target="jYTH6Jz3JsOvPJAKBcka-6" edge="1">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="500" y="130" />
               <mxPoint x="250" y="130" />
-              <mxPoint x="250" y="455" />
+              <mxPoint x="250" y="475" />
             </Array>
             <mxPoint x="460" y="80" as="sourcePoint" />
             <mxPoint x="350" y="430" as="targetPoint" />
@@ -75,13 +75,13 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="jYTH6Jz3JsOvPJAKBcka-18" value="&lt;div&gt;Control (MR 11.66)&lt;br&gt;&lt;/div&gt;&lt;div&gt;$$M_{virt}^{-1} \left( F_{\text{ext}} - B (J(\theta) \dot\theta) - K (q - q_{equ} \right)&lt;br&gt;$$&lt;br&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="357.5" y="270" width="285" height="100" as="geometry" />
+        <mxCell id="jYTH6Jz3JsOvPJAKBcka-18" value="&lt;div&gt;Control (MR 11.66)&lt;br&gt;&lt;/div&gt;&lt;div&gt;$$M_{virt}^{-1} \left( F_{\text{ext}} - D (J(\theta) \dot\theta) - K (q - q_{equ}) \right)&lt;br&gt;$$ $$ + D_{boundry} (J(\theta) \dot\theta) - K_{boundry} (q - q_{boundry})$$ $$ + D_{VelLimit} (J(\theta) \dot\theta)$$&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="353.75" y="260" width="292.5" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="jYTH6Jz3JsOvPJAKBcka-40" value="" style="endArrow=classic;html=1;rounded=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" target="XGiLKBSpAevxkSpyMMWM-2" edge="1">
+        <mxCell id="jYTH6Jz3JsOvPJAKBcka-40" value="" style="endArrow=classic;html=1;rounded=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" target="BIZVBLm7JEEHscJI8ZtW-5" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="1230" y="320" as="sourcePoint" />
-            <mxPoint x="1030" y="180" as="targetPoint" />
+            <mxPoint x="1050" y="210" as="sourcePoint" />
+            <mxPoint x="1180" y="320" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="jYTH6Jz3JsOvPJAKBcka-44" value="$$F_{sensor}$$" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="jYTH6Jz3JsOvPJAKBcka-40" vertex="1" connectable="0">
@@ -89,16 +89,14 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="K6AiGifMPzE6-kjP8r4b-1" value="&lt;div style=&quot;line-height: 130%;&quot;&gt;\(\Theta = \theta,\dot{\theta}\)&lt;br&gt;\(M_{virt}\) = Virtual Mass (6x6)&lt;br&gt;\(q_{equ}\) = spring equilibrium point&lt;br&gt;\(B\) = Damping Matrix (6x6)&lt;br&gt;\(K\) Stiffness Matrix (6x6)&lt;br&gt;\(a\) = torque ramp constant&lt;br&gt;\(C(\theta, \dot{\theta})\dot{\theta}\) = coriolis from libFranka&lt;br&gt;\(G(\theta, \dot{\theta})\dot{\theta}\) = gravity from libFranka&lt;br&gt;\(F(\theta, \dot{\theta})\) = Friction comp using coulomb and viscous coefficiants&lt;br&gt;&lt;/div&gt;&lt;div style=&quot;line-height: 130%;&quot;&gt;\(H\) = Home position&lt;br&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+        <mxCell id="K6AiGifMPzE6-kjP8r4b-1" value="&lt;div style=&quot;line-height: 130%;&quot;&gt;\(\Theta = \theta,\dot{\theta}\)&lt;br&gt;\(M_{virt}\) = Virtual Mass (6x6)&lt;br&gt;\(q_{equ}\) = spring equilibrium point&lt;br&gt;\(D\) = Damping Matrix (6x6)&lt;br&gt;\(K\) Stiffness Matrix (6x6)&lt;br&gt;\(a\) = torque ramp constant&lt;br&gt;\(s\) = Maximum F/T sensor value&lt;br&gt;\(C(\theta, \dot{\theta})\dot{\theta}\) = coriolis from libFranka&lt;br&gt;\(G(\theta, \dot{\theta})\dot{\theta}\) = gravity from libFranka&lt;br&gt;\(F(\theta, \dot{\theta})\) = Friction comp using coulomb and viscous coefficiants&lt;br&gt;&lt;/div&gt;&lt;div style=&quot;line-height: 130%;&quot;&gt;\(H\) = Home position&lt;br&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="635" y="-55" width="200" height="255" as="geometry" />
         </mxCell>
         <mxCell id="K6AiGifMPzE6-kjP8r4b-9" value="" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" target="jYTH6Jz3JsOvPJAKBcka-18" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="250" y="320" as="sourcePoint" />
+            <mxPoint x="250" y="325" as="sourcePoint" />
             <mxPoint x="285" y="260" as="targetPoint" />
-            <Array as="points">
-              <mxPoint x="285" y="320" />
-            </Array>
+            <Array as="points" />
           </mxGeometry>
         </mxCell>
         <mxCell id="lPvl20YBtdKhUg3KRUHm-1" value="" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" target="jYTH6Jz3JsOvPJAKBcka-4" edge="1">
@@ -106,7 +104,7 @@
             <mxPoint x="250" y="450" as="sourcePoint" />
             <mxPoint x="450" y="380" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="250" y="585" />
+              <mxPoint x="250" y="605" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -121,12 +119,12 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="lPvl20YBtdKhUg3KRUHm-6" value="" style="endArrow=classic;html=1;rounded=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" parent="1" target="jYTH6Jz3JsOvPJAKBcka-18" edge="1">
+        <mxCell id="lPvl20YBtdKhUg3KRUHm-6" value="" style="endArrow=classic;html=1;rounded=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" parent="1" target="jYTH6Jz3JsOvPJAKBcka-18" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="720" y="430" as="sourcePoint" />
-            <mxPoint x="450" y="350" as="targetPoint" />
+            <mxPoint x="720" y="230" as="sourcePoint" />
+            <mxPoint x="646.25" y="370" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="720" y="345" />
+              <mxPoint x="720" y="293" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -135,13 +133,17 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="XGiLKBSpAevxkSpyMMWM-2" value="Frame transformation and gravity compensation&lt;br&gt;$${Ad_{Teb}}^T(({Ad_{Tse}})^TF_{sensor} + F_{gravity})$$&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="770" y="260" width="230" height="120" as="geometry" />
+        <mxCell id="XGiLKBSpAevxkSpyMMWM-2" value="Frame transformation and gravity compensation&lt;br&gt;$${Ad_{Teb}}^T(({Ad_{Tse}})^TF_{clamp} + F_{gravity})$$&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="730" y="415" width="230" height="120" as="geometry" />
         </mxCell>
         <mxCell id="XGiLKBSpAevxkSpyMMWM-3" value="" style="endArrow=classic;html=1;rounded=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" parent="1" source="XGiLKBSpAevxkSpyMMWM-2" target="jYTH6Jz3JsOvPJAKBcka-18" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="730" y="370" as="sourcePoint" />
             <mxPoint x="780" y="320" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="690" y="475" />
+              <mxPoint x="690" y="325" />
+            </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="XGiLKBSpAevxkSpyMMWM-4" value="$$F_{ext}$$" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="XGiLKBSpAevxkSpyMMWM-3" vertex="1" connectable="0">
@@ -149,8 +151,30 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="ZWVQMcRDHu6Msy1tPFX7-2" value="Frames:&lt;br&gt;\(s = sensor\)&lt;br&gt;\(e = EE\)&lt;br&gt;\(b = base\)" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="ZWVQMcRDHu6Msy1tPFX7-2" value="Frames:&lt;br&gt;\(s = sensor\)&lt;br&gt;\(e = EE\)&lt;br&gt;\(b = base\)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="870" y="42.5" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="BIZVBLm7JEEHscJI8ZtW-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="BIZVBLm7JEEHscJI8ZtW-1" target="XGiLKBSpAevxkSpyMMWM-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="BIZVBLm7JEEHscJI8ZtW-4" value="$$F_{clamp}$$" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="BIZVBLm7JEEHscJI8ZtW-2">
+          <mxGeometry x="-0.14" y="2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="BIZVBLm7JEEHscJI8ZtW-1" value="&lt;div&gt;F/T Sensor Clamping&lt;/div&gt;&lt;div&gt;if \(||F_{filter}|| &amp;gt; s\), limit \(F_{filter}\) to \(s\) while preserving sign&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="765" y="270" width="160" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="BIZVBLm7JEEHscJI8ZtW-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="BIZVBLm7JEEHscJI8ZtW-5" target="BIZVBLm7JEEHscJI8ZtW-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="BIZVBLm7JEEHscJI8ZtW-7" value="$$F_{filter}$$" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="BIZVBLm7JEEHscJI8ZtW-6">
+          <mxGeometry x="-0.0933" y="4" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="BIZVBLm7JEEHscJI8ZtW-5" value="10Hz Low pass filter" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="990" y="285" width="120" height="60" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
