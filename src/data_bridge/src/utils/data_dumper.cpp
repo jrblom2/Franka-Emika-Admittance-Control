@@ -1,6 +1,6 @@
 #include "data_dumper.hpp"
 
-void robot_dump(const std::vector<queue_package> & data) {
+void robot_dump(const std::vector<queue_package> & data, bool full, int MAX_BUFFER_SIZE, int dump_index) {
     //setup output directory
     time_t now = time(NULL);
     struct tm *timenow = localtime(&now);
@@ -43,7 +43,11 @@ void robot_dump(const std::vector<queue_package> & data) {
     joint_vel_file << std::fixed << std::setprecision(4);
 
     // Iterate through the data
-    for (const queue_package& moment : data) {
+    size_t count = full ? MAX_BUFFER_SIZE : dump_index;
+    for (size_t i = 0; i < count; ++i) {
+        size_t index = full ? (dump_index + i) % MAX_BUFFER_SIZE : i;
+        const queue_package& moment = data[index];
+
         for (int i = 0; i < moment.desired_accel.size(); ++i)
             desired_accel_file << moment.desired_accel(i) << (i < moment.desired_accel.size() - 1 ? "," : "\n");
 

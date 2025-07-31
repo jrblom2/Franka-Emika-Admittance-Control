@@ -152,10 +152,11 @@ int main(int argc, char** argv) {
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
   SafeQueue<queue_package> transfer_package;
-  std::vector<queue_package> dump_vector;
 
-  // reserve space for 100 seconds, will probably crash at the resize?
-  dump_vector.reserve(100000);
+  const int MAX_BUFFER_SIZE = 60000;
+  std::vector<queue_package> dump_vector(MAX_BUFFER_SIZE);
+  int dump_index = 0;
+  bool buffer_full = false;
 
   try {
     // connect to robot
@@ -473,9 +474,13 @@ int main(int argc, char** argv) {
         new_package.ddq_d = ddq_d;
         new_package.dq = dq;
         if (ros2_publish == "TRUE") {
-          transfer_package.Produce(std::move(new_package));
+          transfer_package.Produce(queue_package(new_package));
         }
-        dump_vector.push_back(std::move(new_package));
+
+        dump_vector[dump_index] = new_package;
+        dump_index = (dump_index + 1) % MAX_BUFFER_SIZE;
+        if (dump_index == 0) buffer_full = true;
+
         count = 0;
       }
 
@@ -517,8 +522,7 @@ int main(int argc, char** argv) {
     rclcpp::shutdown();
     spin_thread.join();
   }
-
-  robot_dump(dump_vector);
+  robot_dump(dump_vector, buffer_full, MAX_BUFFER_SIZE, dump_index);
   sensor.on_deactivate();
   return 0;
 }

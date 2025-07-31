@@ -89,7 +89,11 @@ int main(int argc, char** argv) {
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
   SafeQueue<queue_package> transfer_package;
-  std::vector<queue_package> dump_vector;
+  
+  const int MAX_BUFFER_SIZE = 60000;
+  std::vector<queue_package> dump_vector(MAX_BUFFER_SIZE);
+  int dump_index = 0;
+  bool buffer_full = false;
 
   try {
     // connect to robot
@@ -306,7 +310,7 @@ int main(int argc, char** argv) {
     spin_thread.join();
   }
 
-  robot_dump(dump_vector);
+  robot_dump(dump_vector, buffer_full, MAX_BUFFER_SIZE, dump_index);
 
   return 0;
 }
