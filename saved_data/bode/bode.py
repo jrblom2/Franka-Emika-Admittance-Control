@@ -126,12 +126,16 @@ def plot_bode(name, sets, labels, indexes, mass, damping):
     plt.show()
 
 
-labels = ['X', 'Y', 'Z']
-indexes = [0, 1, 2]
-sets = ['data/data_2025-07-29_12-21-38/', 'data/data_2025-07-29_12-19-20/', 'data/data_2025-07-29_12-23-30/']
-plot_bode('xyz', sets, labels, indexes, 1.0, 1.0)
+# labels = ['X', 'Y', 'Z']
+# indexes = [0, 1, 2]
+# sets = [
+#     'data/data_2025-07-31_14-14-17/',
+#     'data/data_2025-07-31_14-15-44/',
+#     'data/data_2025-07-31_14-16-59/',
+# ]
+# plot_bode('xyz', sets, labels, indexes, 3.0, 1.0)
 
 labels = ['Roll', 'Pitch', 'Yaw']
 indexes = [3, 4, 5]
-sets = ['data/data_2025-07-29_12-50-12/', 'data/data_2025-07-29_12-48-13/', 'data/data_2025-07-29_12-44-29/']
+sets = ['data/data_2025-07-31_14-23-28/', 'data/data_2025-07-31_14-26-46/', 'data/data_2025-07-31_14-28-23/']
 plot_bode('rpy', sets, labels, indexes, 1.0, 0.1)
