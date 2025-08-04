@@ -1,7 +1,6 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from IPython import display
 from notebook import iLQR_ergodic_pointmass
 from scipy.stats import multivariate_normal as mvn
 from tqdm import tqdm
@@ -97,8 +96,9 @@ u_traj = init_u_traj.copy()
 step = 0.01
 loss_list = []
 
-fig, axes = plt.subplots(1, 3, dpi=70, figsize=(25, 5), tight_layout=True)
+fig, axes = plt.subplots(1, 3, dpi=70, figsize=(25, 20), tight_layout=True)
 
+plt.ion()
 for iter in tqdm(range(100)):
     x_traj = trajopt_ergodic_pointmass.traj_sim(x0, u_traj)
     v_traj = trajopt_ergodic_pointmass.get_descent(x0, u_traj)
@@ -166,10 +166,5 @@ for iter in tqdm(range(100)):
         height = ax1.get_position().height
         ax3.set_position([ax3.get_position().x0, ax1.get_position().y0, ax3.get_position().width, height])
         ax3.set_yscale('log')
-
-        display.clear_output(wait=True)
-        display.display(fig)
-
-display.clear_output(wait=True)
-plt.show()
-plt.close()
+        plt.draw()
+        plt.pause(1.0)
