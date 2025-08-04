@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
 
   std::string ros2_publish{argv[2]};
 
-  std::string package_share_dir = ament_index_cpp::get_package_share_directory("data_bridge");
+  std::string package_share_dir = ament_index_cpp::get_package_share_directory("controllers");
   std::string config_path = package_share_dir + "/config/config.json";
   std::ifstream f(config_path);
   
@@ -64,9 +64,9 @@ int main(int argc, char** argv) {
 
   // Compliance parameters
   const double translational_stiffness{80.0};
-  const double rotational_stiffness{100.0};
-  const double translational_damping_factor{2.0};
-  const double rotational_damping_factor{1.0};
+  const double rotational_stiffness{40.0};
+  const double translational_damping_factor{2.5};
+  const double rotational_damping_factor{2.0};
   Eigen::MatrixXd stiffness(6, 6), damping(6, 6), virtual_mass(6, 6);
   stiffness.setZero();
   stiffness.topLeftCorner(3, 3) << translational_stiffness * Eigen::MatrixXd::Identity(3, 3);
@@ -79,12 +79,12 @@ int main(int argc, char** argv) {
   
   //mass matrix of robot is about as follows:
   virtual_mass.setZero();
-  virtual_mass(0,0) = 0.20;
-  virtual_mass(1,1) = 0.20;
-  virtual_mass(2,2) = 0.20;
-  virtual_mass(3,3) = 0.05;
-  virtual_mass(4,4) = 0.05;
-  virtual_mass(5,5) = 0.05;
+  virtual_mass(0,0) = 0.25;
+  virtual_mass(1,1) = 0.25;
+  virtual_mass(2,2) = 0.25;
+  virtual_mass(3,3) = 0.01;
+  virtual_mass(4,4) = 0.01;
+  virtual_mass(5,5) = 0.1;
 
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
@@ -215,12 +215,17 @@ int main(int argc, char** argv) {
       Eigen::VectorXd joint_weights = Eigen::VectorXd::Ones(7);
       // joint_weights(0) = 0.1;
       Eigen::MatrixXd W_inv = joint_weights.asDiagonal().inverse();
-      Eigen::MatrixXd weighted_pseudo_inverse = W_inv * jacobian.transpose() * (jacobian * W_inv * jacobian.transpose()).inverse();
+      Eigen::MatrixXd weighted_pseudo_inverse_translation = W_inv.topLeftCorner(4,4) * jacobian.topRows(3).leftCols(4).transpose() * (jacobian.topRows(3).leftCols(4) * W_inv.topLeftCorner(4,4) * jacobian.topRows(3).leftCols(4).transpose()).inverse();
+      Eigen::MatrixXd weighted_pseudo_inverse_rotation = W_inv.bottomRightCorner(3,3) * jacobian.bottomRows(3).rightCols(3).transpose() * (jacobian.bottomRows(3).rightCols(3) * W_inv.bottomRightCorner(3,3) * jacobian.bottomRows(3).rightCols(3).transpose()).inverse();
       // MR 11.66
       Eigen::VectorXd ddq_d(7);
-      ddq_d << weighted_pseudo_inverse * (ddx_d - (djacobian * dq));
-      // MR 8.1
-      tau_task << mass * ddq_d;
+      ddq_d.setZero();
+      ddq_d.head(4) << weighted_pseudo_inverse_translation * (ddx_d.head(3) - (djacobian.topRows(3).leftCols(4) * dq.head(4)));
+      ddq_d.tail(3) << weighted_pseudo_inverse_rotation * (ddx_d.tail(3) - (djacobian.bottomRows(3).rightCols(3) * dq.tail(3)));
+
+      // MR 8.1, control orientation with just last three joints
+      tau_task.head(4) << mass.topLeftCorner(4,4) * ddq_d.head(4);
+      tau_task.tail(3) << mass.bottomRightCorner(3,3) * ddq_d.tail(3);
 
       // add all control elements together
       tau_d << tau_task + coriolis;

@@ -29,7 +29,7 @@ Once the project is built, source it with
 
 Run the executables with
 
- ```ros2 run data_bridge <executable>```
+ ```ros2 run controllers <executable>```
 
 Available executables are as follows and all require the robot IP:
 
@@ -55,7 +55,7 @@ after building and sourcing the project on a different machine from the robot.
 
 ### Packages
 
-`data_bridge`: contains the admittance controller as well as some other examples for controlling the Franka. Publishes to `/robot_data`
+`controllers`: contains the admittance controller as well as some other examples for controlling the Franka. Publishes to `/robot_data`
 
 `data_analysis`: contains several different nodes that listen to `/robot_data` and plot data live. Launch file runs all of them.
 
