@@ -38,14 +38,6 @@ void signal_handler(int signal) {
     }
 }
 
-/**
- * @example cartesian_impedance_control.cpp
- * An example showing a simple cartesian impedance controller without inertia shaping
- * that renders a spring damper system where the equilibrium is the initial configuration.
- * After starting the controller try to push the robot around and try different stiffness levels.
- *
- * @warning collision thresholds are set to high values. Make sure you have the user stop at hand!
- */
 int main(int argc, char** argv) {
   std::signal(SIGINT, signal_handler);
   // Check whether the required arguments were passed

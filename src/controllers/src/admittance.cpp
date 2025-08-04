@@ -40,10 +40,9 @@ void signal_handler(int signal) {
 }
 
 /**
- * @example cartesian_impedance_control.cpp
- * An example showing a simple cartesian impedance controller without inertia shaping
- * that renders a spring damper system where the equilibrium is the initial configuration.
- * After starting the controller try to push the robot around and try different stiffness levels.
+ * An admittance controller designed to interface with a Axia M8 F/T sensor at the wrist. Bounding boxes,
+ * velocity limits, and control parameters can be configured in the configuration named when the contoller
+ * is called.
  *
  * @warning collision thresholds are set to high values. Make sure you have the user stop at hand!
  */
@@ -494,7 +493,6 @@ int main(int argc, char** argv) {
     // start real-time control loop
     std::cout << "WARNING: Collision thresholds are set to high values. "
               << "Make sure you have the user stop at hand!" << std::endl
-              << "After starting try to push the robot and see how it reacts." << std::endl
               << "Press Enter to continue..." << std::endl;
     std::cin.ignore();
     sensor.re_bias();
