@@ -66,6 +66,7 @@ int main(int argc, char** argv) {
   double torque_smoothing = config[config_name]["torque_smoothing"];
 
   double force_limit = config[config_name]["force_limit"];
+  double torque_limit = config[config_name]["torque_limit"];
 
   //stiffness
   std::vector<double> stiffness_values = config[config_name]["stiffness"];
@@ -146,7 +147,7 @@ int main(int argc, char** argv) {
   sensor_ee_adjoint.bottomRightCorner(3,3) << sensor_rotation;
   sensor_ee_adjoint.bottomLeftCorner(3,3) << sensor_translation_skew * sensor_rotation;
 
-  double gravity_comp = 2.75;
+  double gravity_comp = 2.55;
   
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
@@ -352,9 +353,10 @@ int main(int argc, char** argv) {
       Eigen::Matrix<double, 6, 1> base_fext = ee_base_adjoint.transpose() * ee_fext;
 
       // Clamp fext to help prevent off-phase run away
-      base_fext = base_fext.unaryExpr([&](double x) {
-          return std::clamp(x, -force_limit, force_limit);
-      });
+      for (int i = 0; i < 6; ++i) {
+        double limit = (i < 3) ? force_limit : torque_limit;
+        base_fext(i) = std::clamp(base_fext(i), -limit, limit);
+      }
 
       if (config[config_name]["swap_torque"]) {
         base_fext(3) = -base_fext(3);
