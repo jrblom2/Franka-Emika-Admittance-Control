@@ -1,7 +1,7 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from notebook import iLQR_ergodic_pointmass
+from sandbox import iLQR_ergodic_pointmass
 from scipy.stats import multivariate_normal as mvn
 from tqdm import tqdm
 
