@@ -151,6 +151,8 @@ int main(int argc, char** argv) {
   
   // thread-safe queue to transfer robot data to ROS
   std::thread spin_thread;
+  rclcpp::init(argc, argv);
+  rclcpp::executors::MultiThreadedExecutor executor;
   SafeQueue<queue_package> transfer_package;
 
   const int MAX_BUFFER_SIZE = 60000;
@@ -458,7 +460,7 @@ int main(int argc, char** argv) {
       }
       fullCount++;
 
-      if (count == 1) {
+      if (count == 10) {
         queue_package new_package;
         new_package.desired_accel = ddx_d;
         new_package.actual_wrench = base_fext;
@@ -501,25 +503,22 @@ int main(int argc, char** argv) {
 
     // data bridge through ROS2 setup
     if (ros2_publish == "TRUE") {
-      rclcpp::init(argc, argv);
       auto node = std::make_shared<MinimalPublisher>(transfer_package);
-      rclcpp::executors::MultiThreadedExecutor executor;
+      node->init();
       executor.add_node(node);
-      spin_thread = std::thread([&executor]() { executor.spin(); });
+      spin_thread = std::thread([&executor, node]() { executor.spin(); });
     }
-
     robot.control(impedance_control_callback);
   } catch (const franka::Exception& ex) {
-    // print exception
-    std::cout << ex.what() << std::endl;
+    std::cout << "Franka Exception: " << ex.what() << std::endl;
   } catch (const std::exception& ex) {
-    std::cerr << ex.what() << std::endl;
+    std::cerr << "Misc Exception: " << ex.what() << std::endl;
   } catch (...) {
       std::cerr << "Unknown exception caught." << std::endl;
   }
 
+  rclcpp::shutdown();
   if (ros2_publish == "TRUE") {
-    rclcpp::shutdown();
     spin_thread.join();
   }
   robot_dump(dump_vector, buffer_full, MAX_BUFFER_SIZE, dump_index);

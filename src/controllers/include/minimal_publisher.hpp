@@ -10,6 +10,7 @@ class MinimalPublisher : public rclcpp::Node
 {
 public:
   explicit MinimalPublisher(SafeQueue<queue_package> & squeue_transfer);
+  void init();
 
 private:
   void timer_callback();

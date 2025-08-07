@@ -41,3 +41,4 @@ data/
 
 # scratch plotting
 scratch.py
+__pycache__/

@@ -2,13 +2,14 @@
 
 MinimalPublisher::MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
 : Node("minimal_publisher"), squeue_transfer_(squeue_transfer)
-{
+{}
+
+void MinimalPublisher::init() {
   publisher_ = this->create_publisher<data_interfaces::msg::Robot>("robot_data", 10);
 
   auto timer_callback = [this]() -> void {
     queue_package data;
     auto message = data_interfaces::msg::Robot();
-
     while (squeue_transfer_.Consume(data)) {
       message.accel.linear.x = data.desired_accel(0, 0);
       message.accel.linear.y = data.desired_accel(1, 0);
@@ -64,6 +65,6 @@ MinimalPublisher::MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
       publisher_->publish(message);
     }
   };
-
-  timer_ = this->create_wall_timer(std::chrono::milliseconds(20), timer_callback);
+  
+  timer_ = this->create_wall_timer(std::chrono::milliseconds(10), timer_callback);
 }
