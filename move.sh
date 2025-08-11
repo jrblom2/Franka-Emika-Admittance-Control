@@ -5,5 +5,6 @@ rsync -a --no-owner --no-group --progress \
   --exclude 'log/' \
   --exclude 'data/' \
   --exclude 'src/data_analysis/' \
+  --exclude 'src/ergodic/' \
   /home/joe/final/TheWiggler/ \
   student@station:/home/student/TheWiggler
