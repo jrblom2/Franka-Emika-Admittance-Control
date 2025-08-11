@@ -187,41 +187,41 @@ int main(int argc, char** argv) {
       return set;
     };
 
-    // auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
-    //     Eigen::Matrix<double, 6, 1> fext_dummy;
-    //     fext_dummy << (std::sin(t  * 2 * M_PI / 4.0)),
-    //           (std::sin(t  * 2 * M_PI / 4.0)),
-    //           (std::sin(t  * 2 * M_PI / 4.0)),
-    //           0.0,
-    //           0.0,
-    //           0.0;
-    //     return fext_dummy;
-
-    // };
     auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
-      Eigen::Matrix<double, 6, 1> fext_dummy;
+        Eigen::Matrix<double, 6, 1> fext_dummy;
+        fext_dummy << 0.0,
+              2 * (std::sin(t  * 2 * M_PI / 4.0)),
+              0.0,
+              0.0,
+              0.0,
+              0.0;
+        return fext_dummy;
 
-      // Chirp parameters
-      double f0 = 0.1;      // Start frequency (Hz)
-      double f1 = 100.0;      // End frequency (Hz)
-      double T = 30.0;      // Chirp duration (seconds)
-      double k = (f1 - f0) / T;
-
-      // Compute chirp phase: φ(t) = 2π(f0 * t + 0.5 * k * t^2)
-      double phi = 2 * M_PI * (f0 * t + 0.5 * k * t * t);
-
-      // Chirp amplitude (optional scaling)
-      double amplitude = 1.0;
-
-      fext_dummy << 0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    amplitude * std::sin(phi);
-
-      return fext_dummy;
     };
+    // auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
+    //   Eigen::Matrix<double, 6, 1> fext_dummy;
+
+    //   // Chirp parameters
+    //   double f0 = 0.1;      // Start frequency (Hz)
+    //   double f1 = 100.0;      // End frequency (Hz)
+    //   double T = 30.0;      // Chirp duration (seconds)
+    //   double k = (f1 - f0) / T;
+
+    //   // Compute chirp phase: φ(t) = 2π(f0 * t + 0.5 * k * t^2)
+    //   double phi = 2 * M_PI * (f0 * t + 0.5 * k * t * t);
+
+    //   // Chirp amplitude (optional scaling)
+    //   double amplitude = 1.0;
+
+    //   fext_dummy << 0.0,
+    //                 0.0,
+    //                 0.0,
+    //                 0.0,
+    //                 0.0,
+    //                 amplitude * std::sin(phi);
+
+    //   return fext_dummy;
+    // };
 
     Eigen::Matrix<double, 6, 1> x0_vec;
     x0_vec << position_d, 0.0, 0.0, 0.0;
