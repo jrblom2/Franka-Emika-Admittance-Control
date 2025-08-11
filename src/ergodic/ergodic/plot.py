@@ -9,25 +9,29 @@ np.set_printoptions(precision=4)
 rng = np.random.default_rng(1)
 
 # Define the target distribution
-mean1 = np.array([0.35, 0.38])
+mean1 = np.array([0.20, 0.25])
 cov1 = np.array([[0.01, 0.004], [0.004, 0.01]])
-w1 = 0.5
+w1 = 1.0
 
-mean2 = np.array([0.68, 0.25])
-cov2 = np.array([[0.005, -0.003], [-0.003, 0.005]])
-w2 = 0.2
+# mean2 = np.array([0.68, 0.25])
+# cov2 = np.array([[0.005, -0.003], [-0.003, 0.005]])
+# w2 = 0.2
 
-mean3 = np.array([0.56, 0.64])
-cov3 = np.array([[0.008, 0.0], [0.0, 0.004]])
-w3 = 0.3
+# mean3 = np.array([0.56, 0.64])
+# cov3 = np.array([[0.008, 0.0], [0.0, 0.004]])
+# w3 = 0.3
+
+
+# def pdf(x):
+#     return w1 * mvn.pdf(x, mean1, cov1) + w2 * mvn.pdf(x, mean2, cov2) + w3 * mvn.pdf(x, mean3, cov3)
 
 
 def pdf(x):
-    return w1 * mvn.pdf(x, mean1, cov1) + w2 * mvn.pdf(x, mean2, cov2) + w3 * mvn.pdf(x, mean3, cov3)
+    return w1 * mvn.pdf(x, mean1, cov1)
 
 
 # Define a 1-by-1 2D search space
-L_list = np.array([1.0, 1.0])  # boundaries for each dimension
+L_list = np.array([0.45, 0.5])  # boundaries for each dimension
 
 # Discretize the search space into 100-by-100 mesh grids
 grids_x, grids_y = np.meshgrid(np.linspace(0, L_list[0], 100), np.linspace(0, L_list[1], 100))
@@ -63,18 +67,8 @@ for i, (k_vec, hk) in enumerate(zip(ks, hk_list)):
 dt = 0.1
 tsteps = 100
 R = np.diag([0.0001, 0.0001])
-Q_z = np.diag([0.01, 0.01])
+Q_z = np.diag([0.1, 0.1])
 R_v = np.diag([0.01, 0.01])
-x0 = rng.uniform(low=0.4, high=0.6, size=(2,))
-
-# generate a spiral trajectory as the initial control
-temp_x_traj = np.array(
-    [
-        np.linspace(0.0, 0.3, tsteps + 1) * np.cos(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
-        np.linspace(0.0, 0.3, tsteps + 1) * np.sin(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
-    ]
-).T
-init_u_traj = (temp_x_traj[1:, :] - temp_x_traj[:-1, :]) / dt
 
 trajopt_ergodic_pointmass = iLQR_ergodic_pointmass(
     dt,
@@ -90,6 +84,16 @@ trajopt_ergodic_pointmass = iLQR_ergodic_pointmass(
     hk_list=hk_list,
     phik_list=phik_list,
 )
+
+x0 = np.array([0.20, 0.25])
+# generate a spiral trajectory as the initial control
+temp_x_traj = np.array(
+    [
+        np.linspace(0.0, 0.15, tsteps + 1) * np.cos(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
+        np.linspace(0.0, 0.15, tsteps + 1) * np.sin(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
+    ]
+).T
+init_u_traj = (temp_x_traj[1:, :] - temp_x_traj[:-1, :]) / dt
 
 # Iterative trajectory optimization for ergodic control
 u_traj = init_u_traj.copy()
@@ -152,19 +156,13 @@ for iter in tqdm(range(100)):
         ax2.set_xlabel('Time (s)')
         ax2.set_ylabel('Control')
         ax2.legend(loc=1)
-        height = ax1.get_position().height
-        ax2.set_position([ax2.get_position().x0, ax1.get_position().y0, ax2.get_position().width, height])
 
         ax3 = axes[2]
         ax3.cla()
         ax3.set_title('Objective vs. Iteration')
-        ax3.set_xlim(-0.2, 100.2)
-        ax3.set_ylim(3e-3, 1e0)
         ax3.set_xlabel('Iteration')
         ax3.set_ylabel('Objective')
         ax3.plot(np.arange(iter + 1), loss_list, color='C3')
-        height = ax1.get_position().height
-        ax3.set_position([ax3.get_position().x0, ax1.get_position().y0, ax3.get_position().width, height])
         ax3.set_yscale('log')
         plt.draw()
         plt.pause(1.0)
