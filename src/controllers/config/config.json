@@ -32,7 +32,7 @@
         }
     },
     "test": {
-        "torque_smoothing": 100.0,
+        "torque_smoothing": 10.0,
         "force_limit": 7.5,
         "torque_limit": 1.5,
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -63,7 +63,7 @@
         }
     },
     "sin_demo": {
-        "torque_smoothing": 100.0,
+        "torque_smoothing": 10.0,
         "force_limit": 100.0,
         "torque_limit": 100.0,
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -125,7 +125,7 @@
         }
     },
     "light": {
-        "torque_smoothing": 100.0,
+        "torque_smoothing": 1000.0,
         "force_limit": 1000.0,
         "torque_limit": 1000.0,
         "stiffness": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -156,7 +156,7 @@
         }
     },
     "light_fixed": {
-        "torque_smoothing": 100.0,
+        "torque_smoothing": 1000.0,
         "force_limit": 1000.0,
         "torque_limit": 1000.0,
         "stiffness": [0.0, 0.0, 0.0, 50.0, 50.0, 50.0],
