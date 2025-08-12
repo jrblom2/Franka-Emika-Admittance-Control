@@ -1,4 +1,5 @@
 import time
+import math
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,11 +43,11 @@ class ErgodicPlanner(Node):
         self.robot_state_subscription = self.create_subscription(Robot, 'robot_data', self.listener_callback, 10)
         self.ergodic_goal_publisher = self.create_publisher(Point, 'ergodic_goal', 10)
         self.robot_state_subscription  # prevent unused variable warning
-        self.timer = self.create_timer(3.0, self.timer_callback)
+        self.timer = self.create_timer(0.5, self.timer_callback)
         self.position = None
         self.hasPlan = False
         self.goal = np.array([0.35, 0.0])
-        self.currentGoalIndex = 0
+        self.goalIndex = 0
 
         # Define a 1-by-1 2D search space
         dim_root = np.array([0.30, -0.25])
@@ -223,7 +224,7 @@ class ErgodicPlanner(Node):
         self.fig.tight_layout()
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
-        plt.pause(0.1)
+        plt.pause(0.001)
 
     def listener_callback(self, msg):
         self.position = msg.position.position
@@ -237,13 +238,17 @@ class ErgodicPlanner(Node):
                 self.hasPlan = True
             # once we have a plan loaded, always draw
             else:
-                self.goal = self.x_traj[49]
-                self.draw()
+                if math.dist(self.x0, self.goal) < 0.01:
+                    self.goalIndex += 1
+                    if self.goalIndex > len(self.x_traj - 2):
+                        self.hasPlan = False
+                self.goal = self.x_traj[self.goalIndex]
 
-            msg = Point()
-            msg.x = self.goal[0]
-            msg.y = self.goal[1]
-            self.ergodic_goal_publisher.publish(msg)
+                msg = Point()
+                msg.x = self.goal[0]
+                msg.y = self.goal[1]
+                self.ergodic_goal_publisher.publish(msg)
+                self.draw()
 
 
 def main(args=None):
