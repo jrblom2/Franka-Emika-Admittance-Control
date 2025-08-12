@@ -1,11 +1,20 @@
 #include "minimal_publisher.hpp"
 
-MinimalPublisher::MinimalPublisher(SafeQueue<queue_package> & squeue_transfer)
-: Node("minimal_publisher"), squeue_transfer_(squeue_transfer)
+MinimalPublisher::MinimalPublisher(SafeQueue<queue_package> & squeue_transfer, Eigen::Vector3d & goal,
+    std::mutex & goal_mutex)
+: Node("minimal_publisher"), squeue_transfer_(squeue_transfer), goal_(goal), goal_mutex_(goal_mutex)
 {}
 
 void MinimalPublisher::init() {
   publisher_ = this->create_publisher<data_interfaces::msg::Robot>("robot_data", 10);
+
+  goal_subscription_ = this->create_subscription<geometry_msgs::msg::Point>(
+  "ergodic_goal", 10,
+  [this](const geometry_msgs::msg::Point::SharedPtr msg) {
+    std::lock_guard<std::mutex> lock(goal_mutex_);
+    goal_ << msg->x, msg->y, msg->z;
+  }
+  );
 
   auto timer_callback = [this]() -> void {
     queue_package data;

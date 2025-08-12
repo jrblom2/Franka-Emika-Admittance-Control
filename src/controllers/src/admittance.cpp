@@ -155,10 +155,13 @@ int main(int argc, char** argv) {
   rclcpp::executors::MultiThreadedExecutor executor;
   SafeQueue<queue_package> transfer_package;
 
-  const int MAX_BUFFER_SIZE = 60000;
+  const int MAX_BUFFER_SIZE = 6000;
   std::vector<queue_package> dump_vector(MAX_BUFFER_SIZE);
   int dump_index = 0;
   bool buffer_full = false;
+
+  Eigen::Vector3d latest_goal;
+  std::mutex goal_mutex;
 
   try {
     // connect to robot
@@ -277,7 +280,9 @@ int main(int argc, char** argv) {
       Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
-
+      
+      //external input from ergodic planner
+      std::cout << latest_goal << std::endl;
       // compute error to desired equilibrium pose
       // position error
       Eigen::Matrix<double, 6, 1> error;
@@ -503,7 +508,7 @@ int main(int argc, char** argv) {
 
     // data bridge through ROS2 setup
     if (ros2_publish == "TRUE") {
-      auto node = std::make_shared<MinimalPublisher>(transfer_package);
+      auto node = std::make_shared<MinimalPublisher>(transfer_package, latest_goal, goal_mutex);
       node->init();
       executor.add_node(node);
       spin_thread = std::thread([&executor, node]() { executor.spin(); });
