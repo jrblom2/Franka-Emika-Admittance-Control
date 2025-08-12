@@ -240,6 +240,7 @@ class ErgodicPlanner(Node):
             else:
                 if math.dist(self.x0, self.goal) < 0.01:
                     self.goalIndex += 1
+                    # if we are at end of trajectory, replan
                     if self.goalIndex > len(self.x_traj - 2):
                         self.hasPlan = False
                 self.goal = self.x_traj[self.goalIndex]
