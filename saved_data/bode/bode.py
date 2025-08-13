@@ -95,17 +95,17 @@ def plot_bode(name, sets, labels, indexes, mass, damping):
     plt.loglog(freqs_x, mag_linear, '--', label='Expected (m=1.0, c=1.0)', color='black')
     plt.legend()
     plt.title("Frequency Response")
-    plt.ylabel("Amplitude Ratio")
+    plt.ylabel("Amplitude (Force to Velocity)")
     plt.xlim([0.1, max_freq_])
     plt.grid(True)
 
     plt.subplot(3, 1, 2)
-    plt.semilogx(freqs_x, np.angle(H_x), label=labels[0])
-    plt.semilogx(freqs_y, np.angle(H_y), label=labels[1])
-    plt.semilogx(freqs_z, np.angle(H_z), label=labels[2])
-    plt.semilogx(freqs_x, phase_rad, '--', label='Expected', color='black')
+    plt.semilogx(freqs_x, (180 / np.pi) * np.angle(H_x), label=labels[0])
+    plt.semilogx(freqs_y, (180 / np.pi) * np.angle(H_y), label=labels[1])
+    plt.semilogx(freqs_z, (180 / np.pi) * np.angle(H_z), label=labels[2])
+    plt.semilogx(freqs_x, phase_ideal, '--', label='Expected', color='black')
     plt.xlabel("Frequency (Hz)")
-    plt.ylabel("Phase (radians)")
+    plt.ylabel("Phase (degrees)")
     plt.legend()
     plt.xlim([0.1, max_freq_])
     plt.grid(True)
@@ -126,16 +126,16 @@ def plot_bode(name, sets, labels, indexes, mass, damping):
     plt.show()
 
 
-# labels = ['X', 'Y', 'Z']
-# indexes = [0, 1, 2]
-# sets = [
-#     'data/data_2025-07-31_14-14-17/',
-#     'data/data_2025-07-31_14-15-44/',
-#     'data/data_2025-07-31_14-16-59/',
-# ]
-# plot_bode('xyz', sets, labels, indexes, 3.0, 1.0)
+labels = ['X', 'Y', 'Z']
+indexes = [0, 1, 2]
+sets = [
+    'data/data_2025-08-13_15-04-03/',
+    'data/data_2025-08-13_15-02-41/',
+    'data/data_2025-08-13_15-00-55/',
+]
+plot_bode('xyz', sets, labels, indexes, 3.0, 1.0)
 
-labels = ['Roll', 'Pitch', 'Yaw']
-indexes = [3, 4, 5]
-sets = ['data/data_2025-07-31_14-23-28/', 'data/data_2025-07-31_14-26-46/', 'data/data_2025-07-31_14-28-23/']
-plot_bode('rpy', sets, labels, indexes, 1.0, 0.1)
+# labels = ['Roll', 'Pitch', 'Yaw']
+# indexes = [3, 4, 5]
+# sets = ['data/data_2025-07-31_14-23-28/', 'data/data_2025-07-31_14-26-46/', 'data/data_2025-07-31_14-28-23/']
+# plot_bode('rpy', sets, labels, indexes, 1.0, 0.1)
