@@ -181,7 +181,6 @@ class ErgodicPlanner(Node):
         ax1.set_xlabel('X (m)')
         ax1.set_ylabel('Y (m)')
         ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
-        # ax1.plot([x0[0], x_traj[0, 0]], [x0[1], x_traj[0, 1]], linestyle='-', linewidth=2, color='k', alpha=1.0)
         ax1.plot(
             x_traj[:, 0],
             x_traj[:, 1],
@@ -193,16 +192,16 @@ class ErgodicPlanner(Node):
             label='Optimized trajectory',
         )
         ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot State')
-        ax1.plot(
-            self.goal[0],
-            self.goal[1],
-            linestyle='',
-            marker='o',
-            markersize=15,
-            color='green',
-            alpha=1.0,
-            label='Current Goal',
-        )
+        # ax1.plot(
+        #     self.goal[0],
+        #     self.goal[1],
+        #     linestyle='',
+        #     marker='o',
+        #     markersize=15,
+        #     color='green',
+        #     alpha=1.0,
+        #     label='Current Goal',
+        # )
         ax1.legend(loc=1)
 
         ax2 = axes[1]

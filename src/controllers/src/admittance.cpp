@@ -68,6 +68,15 @@ int main(int argc, char** argv) {
   double force_limit = config[config_name]["force_limit"];
   double torque_limit = config[config_name]["torque_limit"];
 
+  bool swap_torque = config[config_name]["swap_torque"];
+  bool use_dummy_force = config[config_name]["use_dummy_force"];
+
+  //ergodic setup
+  bool use_ergodic_force = config[config_name]["use_ergodic_force"];
+  std::vector<double> ergodic_values = config[config_name]["ergodic_gains"];
+  Eigen::VectorXd ergodic_vec = Eigen::Map<Eigen::VectorXd>(ergodic_values.data(), ergodic_values.size());
+  Eigen::MatrixXd ergodic_gains = ergodic_vec.asDiagonal();
+
   //stiffness
   std::vector<double> stiffness_values = config[config_name]["stiffness"];
   Eigen::VectorXd stiffness_vec = Eigen::Map<Eigen::VectorXd>(stiffness_values.data(), stiffness_values.size());
@@ -285,7 +294,7 @@ int main(int argc, char** argv) {
       // compute error to desired equilibrium pose
       // position error
       Eigen::Matrix<double, 6, 1> error;
-      error.head(3) << position - latest_goal;
+      error.head(3) << position - position_d;
       
       // orientation error
       // "difference" quaternion
@@ -364,12 +373,12 @@ int main(int argc, char** argv) {
         base_fext(i) = std::clamp(base_fext(i), -limit, limit);
       }
 
-      if (config[config_name]["swap_torque"]) {
+      if (swap_torque) {
         base_fext(3) = -base_fext(3);
         base_fext(4) = -base_fext(4);
         base_fext(5) = -base_fext(5);
       }
-      if (config[config_name]["use_dummy_force"]) {
+      if (use_dummy_force) {
         base_fext = fext_func(fullCount/1000.0);
         std::cout << "Time: " << fullCount/1000.0 << std::endl;
       }
@@ -380,6 +389,11 @@ int main(int argc, char** argv) {
       // compute control MR 11.66
       Eigen::VectorXd ddx_d(6);
       ddx_d << virtual_mass.inverse() * (base_fext - (damping * jac_vel) - (stiffness * error));
+
+      // follow ergodic goals
+      if (use_ergodic_force) {
+        ddx_d.head(3) -= ergodic_gains * (position - latest_goal);
+      }
 
       // compute boundry acceleration to keep EE in bounds
       if (use_boundry) {
