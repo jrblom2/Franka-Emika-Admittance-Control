@@ -43,10 +43,11 @@ class ErgodicPlanner(Node):
         self.robot_state_subscription = self.create_subscription(Robot, 'robot_data', self.listener_callback, 10)
         self.ergodic_goal_publisher = self.create_publisher(Point, 'ergodic_goal', 10)
         self.robot_state_subscription  # prevent unused variable warning
-        self.timer = self.create_timer(0.5, self.timer_callback)
+        self.timer = self.create_timer(0.1, self.timer_callback)
         self.position = None
         self.hasPlan = False
         self.goal = np.array([0.35, 0.0])
+        self.staticHeight = 0.590467
         self.goalIndex = 0
 
         # Define a 1-by-1 2D search space
@@ -191,7 +192,7 @@ class ErgodicPlanner(Node):
             alpha=1.0,
             label='Optimized trajectory',
         )
-        ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Initial state')
+        ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot State')
         ax1.plot(
             self.goal[0],
             self.goal[1],
@@ -238,17 +239,19 @@ class ErgodicPlanner(Node):
                 self.hasPlan = True
             # once we have a plan loaded, always draw
             else:
-                if math.dist(self.x0, self.goal) < 0.01:
+                if math.dist(self.x0, self.goal) < 0.02:
                     self.goalIndex += 1
-                    # if we are at end of trajectory, replan
-                    if self.goalIndex > len(self.x_traj - 2):
-                        self.hasPlan = False
                 self.goal = self.x_traj[self.goalIndex]
 
                 msg = Point()
                 msg.x = self.goal[0]
                 msg.y = self.goal[1]
+                msg.z = self.staticHeight
                 self.ergodic_goal_publisher.publish(msg)
+                # if we are at end of trajectory, replan
+                if self.goalIndex > len(self.x_traj) - 2:
+                    self.hasPlan = False
+                    self.goalIndex = 0
                 self.draw()
 
 

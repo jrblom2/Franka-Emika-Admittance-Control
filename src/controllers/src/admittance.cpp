@@ -183,6 +183,7 @@ int main(int argc, char** argv) {
     // equilibrium point is the initial position
     Eigen::Affine3d initial_transform(Eigen::Matrix4d::Map(initial_state.O_T_EE.data()));
     Eigen::Vector3d position_d(initial_transform.translation());
+    latest_goal = position_d;
     Eigen::Quaterniond orientation_d(initial_transform.rotation());
     
     auto set_point_func_sim = [&](double) -> Eigen::Matrix<double, 6, 1> {
@@ -281,12 +282,10 @@ int main(int argc, char** argv) {
       Eigen::Vector3d position(transform.translation());
       Eigen::Quaterniond orientation(transform.rotation());
       
-      //external input from ergodic planner
-      std::cout << latest_goal << std::endl;
       // compute error to desired equilibrium pose
       // position error
       Eigen::Matrix<double, 6, 1> error;
-      error.head(3) << position - position_d;
+      error.head(3) << position - latest_goal;
       
       // orientation error
       // "difference" quaternion
