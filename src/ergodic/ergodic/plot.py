@@ -5,8 +5,46 @@ from sandbox import iLQR_ergodic_pointmass
 from scipy.stats import multivariate_normal as mvn
 from tqdm import tqdm
 
+
+def phiKFromTraj(x_traj):
+    phik_list = np.zeros(ks.shape[0])
+
+    for i, (k_vec, hk) in enumerate(zip(ks, hk_list)):
+        fk_vals = np.prod(np.cos(np.pi * k_vec / L_list * x_traj), axis=1)
+        fk_vals /= hk
+        phik = np.mean(fk_vals)  # Time average
+        phik_list[i] = phik
+
+    return phik_list
+
+
 np.set_printoptions(precision=4)
 rng = np.random.default_rng(1)
+
+dt = 0.1
+tsteps = 100
+
+x0 = np.array([0.30, 0.25])
+# generate a spiral trajectory as the initial control
+init_x_traj = np.array(
+    [
+        np.linspace(0.0, 0.32, tsteps + 1) * np.cos(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
+        np.linspace(0.0, 0.28, tsteps + 1) * np.sin(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
+    ]
+).T
+init_x_traj += x0
+xs, ys = zip(*init_x_traj)
+
+init_x_traj2 = np.array(
+    [
+        np.linspace(0.0, 0.05, tsteps + 1) * -np.cos(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
+        np.linspace(0.0, 0.05, tsteps + 1) * -np.sin(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
+    ]
+).T
+xs2, ys2 = zip(*init_x_traj2)
+x1 = np.array([0.20, 0.20])
+init_x_traj2 += x1
+xs2, ys2 = zip(*init_x_traj2)
 
 # Define the target distribution
 mean1 = np.array([0.20, 0.25])
@@ -52,20 +90,60 @@ for i, k_vec in enumerate(ks):
     hk = np.sqrt(np.sum(np.square(fk_vals)) * dx * dy)
     hk_list[i] = hk
 
-# compute the coefficients for the target distribution
-phik_list = np.zeros(ks.shape[0])
-pdf_vals = pdf(grids)
+# # Total area of the domain
+# A = L_list[0] * L_list[1]
+
+# # Uniform PDF over the domain
+# pdf_vals = np.ones(grids.shape[0]) * (1 / A)
+x_lower, x_upper = 0.2 * L_list[0], 0.8 * L_list[0]
+y_lower, y_upper = 0.2 * L_list[1], 0.8 * L_list[1]
+
+# Identify points within the middle 60% in both x and y
+inside_middle = (
+    (grids[:, 0] >= x_lower) & (grids[:, 0] <= x_upper) & (grids[:, 1] >= y_lower) & (grids[:, 1] <= y_upper)
+)
+
+# Set uniform density over the middle region, zero elsewhere
+pdf_vals = np.zeros(grids.shape[0])
+pdf_vals[inside_middle] = 1.0
+
+# Normalize PDF so it integrates to 1
+pdf_vals /= np.sum(pdf_vals) * dx * dy
+
+# Compute coefficients
+phik_uniform = np.zeros(ks.shape[0])
 for i, (k_vec, hk) in enumerate(zip(ks, hk_list)):
     fk_vals = np.prod(np.cos(np.pi * k_vec / L_list * grids), axis=1)
     fk_vals /= hk
 
     phik = np.sum(fk_vals * pdf_vals) * dx * dy
-    phik_list[i] = phik
+    phik_uniform[i] = phik
+
+# phik_list = 0.5 * phiKFromTraj(init_x_traj) + 0.5 * phiKFromTraj(init_x_traj2)
+phik_list = phiKFromTraj(init_x_traj) - 0.3 * phiKFromTraj(init_x_traj2)
+pdf_recon = np.zeros(grids.shape[0])
+for i, (phik, k_vec) in enumerate(zip(phik_list, ks)):
+    fk_vals = np.prod(np.cos(np.pi * k_vec / L_list * grids), axis=1)
+    hk = np.sqrt(np.sum(np.square(fk_vals)) * dx * dy)
+    fk_vals /= hk
+
+    pdf_recon += phik * fk_vals
+
+pdf_recon = np.maximum(pdf_recon, 0)
+pdf_recon /= np.sum(pdf_recon) * dx * dy
+
+# # compute the coefficients for the target distribution
+# phik_list = np.zeros(ks.shape[0])
+# pdf_vals = pdf(grids)
+# for i, (k_vec, hk) in enumerate(zip(ks, hk_list)):
+#     fk_vals = np.prod(np.cos(np.pi * k_vec / L_list * grids), axis=1)
+#     fk_vals /= hk
+
+#     phik = np.sum(fk_vals * pdf_vals) * dx * dy
+#     phik_list[i] = phik
 
 
 # Define the optimal control problem
-dt = 0.1
-tsteps = 100
 R = np.diag([0.0001, 0.0001])
 Q_z = np.diag([0.1, 0.1])
 R_v = np.diag([0.01, 0.01])
@@ -85,15 +163,7 @@ trajopt_ergodic_pointmass = iLQR_ergodic_pointmass(
     phik_list=phik_list,
 )
 
-x0 = np.array([0.20, 0.25])
-# generate a spiral trajectory as the initial control
-temp_x_traj = np.array(
-    [
-        np.linspace(0.0, 0.15, tsteps + 1) * np.cos(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
-        np.linspace(0.0, 0.15, tsteps + 1) * np.sin(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
-    ]
-).T
-init_u_traj = (temp_x_traj[1:, :] - temp_x_traj[:-1, :]) / dt
+init_u_traj = (init_x_traj[1:, :] - init_x_traj[:-1, :]) / dt
 
 # Iterative trajectory optimization for ergodic control
 u_traj = init_u_traj.copy()
@@ -132,8 +202,10 @@ for iter in tqdm(range(100)):
         ax1.set_title('Iteration: {:d}'.format(iter + 1))
         ax1.set_xlabel('X (m)')
         ax1.set_ylabel('Y (m)')
-        ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
+        ax1.contourf(grids_x, grids_y, pdf_recon.reshape(grids_x.shape), cmap='Reds')
         ax1.plot([x0[0], x_traj[0, 0]], [x0[1], x_traj[0, 1]], linestyle='-', linewidth=2, color='k', alpha=1.0)
+        ax1.plot(xs, ys, linestyle='-', linewidth=2, color='green', alpha=1.0)
+        ax1.plot(xs2, ys2, linestyle='-', linewidth=2, color='blue', alpha=1.0)
         ax1.plot(
             x_traj[:, 0],
             x_traj[:, 1],
