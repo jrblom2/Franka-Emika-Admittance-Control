@@ -10,6 +10,8 @@ from scipy.stats import multivariate_normal as mvn
 
 from data_interfaces.msg import Robot
 from ergodic.sandbox import iLQR_ergodic_pointmass
+import threading
+from enum import auto, Enum
 
 np.set_printoptions(precision=4)
 rng = np.random.default_rng(1)
@@ -19,31 +21,44 @@ mean1 = np.array([0.45, 0.00])
 cov1 = np.array([[0.01, 0.0], [0.0, 0.01]])
 w1 = 1.0
 
-# mean2 = np.array([0.68, 0.25])
-# cov2 = np.array([[0.005, -0.003], [-0.003, 0.005]])
-# w2 = 0.2
-
-# mean3 = np.array([0.56, 0.64])
-# cov3 = np.array([[0.008, 0.0], [0.0, 0.004]])
-# w3 = 0.3
-
-
-# def pdf(x):
-#     return w1 * mvn.pdf(x, mean1, cov1) + w2 * mvn.pdf(x, mean2, cov2) + w3 * mvn.pdf(x, mean3, cov3)
-
 
 def pdf(x):
+    """Return the probability density of a single Gaussian distribution evaluated at x."""
     return w1 * mvn.pdf(x, mean1, cov1)
 
 
+class State(Enum):
+    """Enum to represent the current state of the planner."""
+
+    IDLE = auto()
+    RECORDING = auto()
+    READY = auto()
+    MOVING = auto()
+    SHUTDOWN = auto()
+
+
 class ErgodicPlanner(Node):
+    """
+    ROS2 node that performs ergodic trajectory planning for a point mass robot.
+
+    Subscribes to robot state, plans trajectories using iLQR, and publishes goals.
+    """
 
     def __init__(self):
+        """Initialize the ErgodicPlanner node."""
         super().__init__('ergodic_planner')
         self.robot_state_subscription = self.create_subscription(Robot, 'robot_data', self.listener_callback, 10)
         self.ergodic_goal_publisher = self.create_publisher(Point, 'ergodic_goal', 10)
         self.robot_state_subscription  # prevent unused variable warning
         self.timer = self.create_timer(0.1, self.timer_callback)
+
+        # manage user input
+        self.running = True
+        self.get_logger().info('Node started. Type "shutdown" to stop the node.')
+        self.input_thread = threading.Thread(target=self.user_input_loop, daemon=True)
+        self.input_thread.start()
+
+        self.state = State.IDLE
         self.position = None
         self.hasPlan = False
         self.goal = np.array([0.35, 0.0])
@@ -53,7 +68,7 @@ class ErgodicPlanner(Node):
         # Define a 1-by-1 2D search space
         dim_root = np.array([0.30, -0.25])
         self.dim_root = dim_root
-        L_list = np.array([0.45, 0.5])  # boundaries for each dimension
+        L_list = np.array([0.45, 0.5])
         self.L_list = L_list
 
         # Discretize the search space into 100-by-100 mesh grids
@@ -63,17 +78,16 @@ class ErgodicPlanner(Node):
         )
         self.grids_x = grids_x
         self.grids_y = grids_y
-
         grids = np.array([grids_x.ravel(), grids_y.ravel()]).T
         dx = 1.0 / 99
         dy = 1.0 / 99
 
-        # Configure the index vectors
+        # Frequency vectors
         num_k_per_dim = 10
         ks_dim1, ks_dim2 = np.meshgrid(np.arange(num_k_per_dim), np.arange(num_k_per_dim))
         ks = np.array([ks_dim1.ravel(), ks_dim2.ravel()]).T
 
-        # Pre-processing lambda_k and h_k
+        # Lambda and h_k coefficients
         lamk_list = np.power(1.0 + np.linalg.norm(ks, axis=1), -3 / 2.0)
         hk_list = np.zeros(ks.shape[0])
         for i, k_vec in enumerate(ks):
@@ -81,18 +95,17 @@ class ErgodicPlanner(Node):
             hk = np.sqrt(np.sum(np.square(fk_vals)) * dx * dy)
             hk_list[i] = hk
 
-        # compute the coefficients for the target distribution
+        # Coefficients for target distribution
         phik_list = np.zeros(ks.shape[0])
         pdf_vals = pdf(grids)
         self.pdf_vals = pdf_vals
         for i, (k_vec, hk) in enumerate(zip(ks, hk_list)):
             fk_vals = np.prod(np.cos(np.pi * k_vec / L_list * grids), axis=1)
             fk_vals /= hk
-
             phik = np.sum(fk_vals * pdf_vals) * dx * dy
             phik_list[i] = phik
 
-        # Define the optimal control problem
+        # Trajectory optimizer setup
         dt = 0.1
         self.dt = dt
         tsteps = 100
@@ -117,7 +130,6 @@ class ErgodicPlanner(Node):
         )
 
         self.x0 = np.array([0.35, 0.0])
-        # generate a spiral trajectory as the initial control
         temp_x_traj = np.array(
             [
                 np.linspace(0.0, 0.15, tsteps + 1) * np.cos(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
@@ -130,6 +142,11 @@ class ErgodicPlanner(Node):
         self.fig, self.axes = plt.subplots(1, 3, dpi=70, figsize=(25, 20), tight_layout=True)
 
     def plan(self):
+        """
+        Plan an ergodic trajectory using iterative LQR (iLQR).
+
+        The resulting trajectory and loss history are stored.
+        """
         u_traj = self.init_u_traj.copy()
         loss_list = []
         x0 = self.x0
@@ -143,7 +160,7 @@ class ErgodicPlanner(Node):
 
             step = 0.002
             alpha = 0.5
-            for _i in range(3):
+            for _ in range(3):
                 temp_u_traj = u_traj + step * v_traj
                 temp_x_traj = self.trajopt_ergodic_pointmass.traj_sim(x0, temp_u_traj)
                 temp_loss_val = self.trajopt_ergodic_pointmass.loss(temp_x_traj, temp_u_traj)
@@ -159,6 +176,7 @@ class ErgodicPlanner(Node):
         print(f'Planning complete in {time.time() - startTime} seconds. {len(loss_list)} iterations.')
 
     def draw(self):
+        """Update the plots with the current trajectory, control inputs, and objective history."""
         axes = self.axes
         dim_root = self.dim_root
         L_list = self.L_list
@@ -181,27 +199,8 @@ class ErgodicPlanner(Node):
         ax1.set_xlabel('X (m)')
         ax1.set_ylabel('Y (m)')
         ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
-        ax1.plot(
-            x_traj[:, 0],
-            x_traj[:, 1],
-            linestyle='-',
-            marker='o',
-            color='k',
-            linewidth=2,
-            alpha=1.0,
-            label='Optimized trajectory',
-        )
-        ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot State')
-        # ax1.plot(
-        #     self.goal[0],
-        #     self.goal[1],
-        #     linestyle='',
-        #     marker='o',
-        #     markersize=15,
-        #     color='green',
-        #     alpha=1.0,
-        #     label='Current Goal',
-        # )
+        ax1.plot(x_traj[:, 0], x_traj[:, 1], linestyle='-', marker='o', color='k', linewidth=2, alpha=1.0)
+        ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0)
         ax1.legend(loc=1)
 
         ax2 = axes[1]
@@ -221,23 +220,34 @@ class ErgodicPlanner(Node):
         ax3.set_ylabel('Objective')
         ax3.plot(loss_list, color='C3')
         ax3.set_yscale('log')
+
         self.fig.tight_layout()
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
         plt.pause(0.001)
 
     def listener_callback(self, msg):
+        """
+        Receive the robot's current position.
+
+        Updates initial state x0 for planning.
+        """
         self.position = msg.position.position
         self.x0 = np.array([self.position.x, self.position.y])
 
     def timer_callback(self):
+        """
+        Periodic timer callback that manages the planner's state machine.
+
+        Handles planning, visualization, and goal publishing.
+        """
         if self.position is not None:
-            # only continue if we have received a position from the robot
-            if not self.hasPlan:
+            if self.state == State.IDLE:
                 self.plan()
-                self.hasPlan = True
-            # once we have a plan loaded, always draw
-            else:
+                self.state = State.READY
+            if self.state == State.READY or self.state == State.MOVING:
+                self.draw()
+            if self.state == State.MOVING:
                 if math.dist(self.x0, self.goal) < 0.02:
                     self.goalIndex += 1
                 self.goal = self.x_traj[self.goalIndex]
@@ -247,14 +257,24 @@ class ErgodicPlanner(Node):
                 msg.y = self.goal[1]
                 msg.z = self.staticHeight
                 self.ergodic_goal_publisher.publish(msg)
-                # if we are at end of trajectory, replan
+
                 if self.goalIndex > len(self.x_traj) - 2:
-                    self.hasPlan = False
+                    self.state = State.IDLE
                     self.goalIndex = 0
-                self.draw()
+
+    def user_input_loop(self):
+        """Thread loop that listens for user input from the terminal."""
+        while not self.state == State.SHUTDOWN:
+            user_input = input('Enter command: ').strip().lower()
+            if user_input == 'shutdown':
+                self.state = State.SHUTDOWN
+                rclpy.shutdown()
+            if user_input == 'moving':
+                self.state = State.MOVING
 
 
 def main(args=None):
+    """Entry point for running the ErgodicPlanner node."""
     rclpy.init(args=args)
     ergodic_planner = ErgodicPlanner()
     rclpy.spin(ergodic_planner)
