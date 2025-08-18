@@ -29,7 +29,7 @@
         },
         "use_velocity_max": true,
         "velocity_max": {
-            "max_velocity": [0.3, 0.4, 0.2, 0.5, 0.5, 0.5],
+            "max_velocity": [0.2, 0.3, 0.2, 0.5, 0.5, 0.5],
             "damping": [45.0, 45.0, 45.0, 2.0, 2.0, 2.0]
         }
     },

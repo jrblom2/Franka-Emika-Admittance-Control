@@ -92,7 +92,7 @@ def plot_bode(name, sets, labels, indexes, mass, damping):
     plt.loglog(freqs_x, np.abs(H_x), label=labels[0])
     plt.loglog(freqs_y, np.abs(H_y), label=labels[1])
     plt.loglog(freqs_z, np.abs(H_z), label=labels[2])
-    plt.loglog(freqs_x, mag_linear, '--', label='Expected (m=1.0, c=1.0)', color='black')
+    plt.loglog(freqs_x, mag_linear, '--', label='Expected (m=3.0, c=1.0)', color='black')
     plt.legend()
     plt.title("Frequency Response")
     plt.ylabel("Amplitude (Force to Velocity)")
