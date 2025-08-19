@@ -56,11 +56,13 @@ class ErgodicPlanner(Node):
         self.running = True
         self.get_logger().info('Node started. Type "shutdown" to stop the node.')
         self.input_thread = threading.Thread(target=self.user_input_loop, daemon=True)
-        self.input_thread.start()
+
+        self.recordBuffer = []
+        self.currentTraj = []
+        self.pdf_recon = None
 
         self.state = State.IDLE
         self.position = None
-        self.hasPlan = False
         self.goal = np.array([0.35, 0.0])
         self.staticHeight = 0.590467
         self.goalIndex = 0
@@ -81,29 +83,69 @@ class ErgodicPlanner(Node):
         grids = np.array([grids_x.ravel(), grids_y.ravel()]).T
         dx = 1.0 / 99
         dy = 1.0 / 99
+        self.dx = dx
+        self.dy = dy
+        self.grids = grids
 
         # Frequency vectors
         num_k_per_dim = 10
         ks_dim1, ks_dim2 = np.meshgrid(np.arange(num_k_per_dim), np.arange(num_k_per_dim))
         ks = np.array([ks_dim1.ravel(), ks_dim2.ravel()]).T
+        self.ks = ks
 
         # Lambda and h_k coefficients
-        lamk_list = np.power(1.0 + np.linalg.norm(ks, axis=1), -3 / 2.0)
+        self.lamk_list = np.power(1.0 + np.linalg.norm(ks, axis=1), -3 / 2.0)
         hk_list = np.zeros(ks.shape[0])
+        self.hk_list = hk_list
         for i, k_vec in enumerate(ks):
             fk_vals = np.prod(np.cos(np.pi * k_vec / L_list * grids), axis=1)
             hk = np.sqrt(np.sum(np.square(fk_vals)) * dx * dy)
             hk_list[i] = hk
 
-        # Coefficients for target distribution
-        phik_list = np.zeros(ks.shape[0])
-        pdf_vals = pdf(grids)
-        self.pdf_vals = pdf_vals
-        for i, (k_vec, hk) in enumerate(zip(ks, hk_list)):
-            fk_vals = np.prod(np.cos(np.pi * k_vec / L_list * grids), axis=1)
+        plt.ion()
+        self.fig, self.axes = plt.subplots(1, 2, dpi=70, figsize=(25, 20), tight_layout=True)
+        self.input_thread.start()
+
+    def phiKFromTraj(self, x_traj):
+        """Produce the phik coefficients form a given x-y trajectory."""
+        phik_list = np.zeros(self.ks.shape[0])
+
+        for i, (k_vec, hk) in enumerate(zip(self.ks, self.hk_list)):
+            fk_vals = np.prod(np.cos(np.pi * k_vec / self.L_list * x_traj), axis=1)
             fk_vals /= hk
-            phik = np.sum(fk_vals * pdf_vals) * dx * dy
+            phik = np.mean(fk_vals)  # Time average
             phik_list[i] = phik
+
+        return phik_list
+
+    def plan(self):
+        """
+        Plan an ergodic trajectory using iterative LQR (iLQR).
+
+        The resulting trajectory and loss history are stored.
+        """
+        # Coefficients for target distribution
+        # phik_list = np.zeros(ks.shape[0])
+        # pdf_vals = pdf(grids)
+        # self.pdf_vals = pdf_vals
+        # for i, (k_vec, hk) in enumerate(zip(ks, hk_list)):
+        #     fk_vals = np.prod(np.cos(np.pi * k_vec / L_list * grids), axis=1)
+        #     fk_vals /= hk
+        #     phik = np.sum(fk_vals * pdf_vals) * dx * dy
+        #     phik_list[i] = phik
+        phik_list = self.phiKFromTraj(self.currentTraj - self.dim_root)
+
+        pdf_recon = np.zeros(self.grids.shape[0])
+        for i, (phik, k_vec) in enumerate(zip(phik_list, self.ks)):
+            fk_vals = np.prod(np.cos(np.pi * k_vec / self.L_list * (self.grids - self.dim_root)), axis=1)
+            hk = np.sqrt(np.sum(np.square(fk_vals)) * self.dx * self.dy)
+            fk_vals /= hk
+
+            pdf_recon += phik * fk_vals
+
+        pdf_recon = np.maximum(pdf_recon, 0)
+        pdf_recon /= np.sum(pdf_recon) * self.dx * self.dy
+        self.pdf_recon = pdf_recon
 
         # Trajectory optimizer setup
         dt = 0.1
@@ -122,14 +164,13 @@ class ErgodicPlanner(Node):
             Q_z=Q_z,
             R_v=R_v,
             R=R,
-            ks=ks,
-            L_list=L_list,
-            lamk_list=lamk_list,
-            hk_list=hk_list,
+            ks=self.ks,
+            L_list=self.L_list,
+            lamk_list=self.lamk_list,
+            hk_list=self.hk_list,
             phik_list=phik_list,
         )
 
-        self.x0 = np.array([0.35, 0.0])
         temp_x_traj = np.array(
             [
                 np.linspace(0.0, 0.15, tsteps + 1) * np.cos(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
@@ -138,19 +179,10 @@ class ErgodicPlanner(Node):
         ).T
         self.init_u_traj = (temp_x_traj[1:, :] - temp_x_traj[:-1, :]) / dt
 
-        plt.ion()
-        self.fig, self.axes = plt.subplots(1, 3, dpi=70, figsize=(25, 20), tight_layout=True)
-
-    def plan(self):
-        """
-        Plan an ergodic trajectory using iterative LQR (iLQR).
-
-        The resulting trajectory and loss history are stored.
-        """
         u_traj = self.init_u_traj.copy()
         loss_list = []
-        x0 = self.x0
-        startTime = time.time()
+        x0 = self.x0 - self.dim_root
+        # startTime = time.time()
         while len(loss_list) < 2 or (loss_list[-2] - loss_list[-1]) > 0.001:
             x_traj = self.trajopt_ergodic_pointmass.traj_sim(x0, u_traj)
             v_traj = self.trajopt_ergodic_pointmass.get_descent(x0, u_traj)
@@ -173,7 +205,7 @@ class ErgodicPlanner(Node):
             self.u_traj = u_traj
 
         self.loss_list = loss_list
-        print(f'Planning complete in {time.time() - startTime} seconds. {len(loss_list)} iterations.')
+        # print(f'Planning complete in {time.time() - startTime} seconds. {len(loss_list)} iterations.')
 
     def draw(self):
         """Update the plots with the current trajectory, control inputs, and objective history."""
@@ -181,15 +213,16 @@ class ErgodicPlanner(Node):
         dim_root = self.dim_root
         L_list = self.L_list
         x_traj = self.x_traj
-        tsteps = self.tsteps
+        # tsteps = self.tsteps
         x0 = self.x0
-        u_traj = self.u_traj
-        dt = self.dt
-        loss_list = self.loss_list
-        pdf_vals = self.pdf_vals
+        # u_traj = self.u_traj
+        # dt = self.dt
+        # loss_list = self.loss_list
+        pdf_vals = self.pdf_recon
         grids_x = self.grids_x
         grids_y = self.grids_y
 
+        trajX, trajY = zip(*self.currentTraj)
         ax1 = axes[0]
         ax1.cla()
         ax1.set_aspect('equal', adjustable='box')
@@ -199,27 +232,36 @@ class ErgodicPlanner(Node):
         ax1.set_xlabel('X (m)')
         ax1.set_ylabel('Y (m)')
         ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
-        ax1.plot(x_traj[:, 0], x_traj[:, 1], linestyle='-', marker='o', color='k', linewidth=2, alpha=1.0)
-        ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0)
+        ax1.plot(trajX, trajY, linestyle='-', color='green', linewidth=2, alpha=1.0)
+        ax1.plot(
+            x_traj[:, 0] + dim_root[0],
+            x_traj[:, 1] + dim_root[1],
+            linestyle='-',
+            marker='o',
+            color='k',
+            linewidth=2,
+            alpha=1.0,
+        )
+        ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot')
         ax1.legend(loc=1)
 
-        ax2 = axes[1]
-        ax2.cla()
-        ax2.set_title('Control vs. Time')
-        ax2.set_ylim(-1.1, 1.1)
-        ax2.plot(np.arange(tsteps) * dt, u_traj[:, 0], color='C0', label=r'$u_1$')
-        ax2.plot(np.arange(tsteps) * dt, u_traj[:, 1], color='C1', label=r'$u_2$')
-        ax2.set_xlabel('Time (s)')
-        ax2.set_ylabel('Control')
-        ax2.legend(loc=1)
+        # ax2 = axes[1]
+        # ax2.cla()
+        # ax2.set_title('Control vs. Time')
+        # ax2.set_ylim(-1.1, 1.1)
+        # ax2.plot(np.arange(tsteps) * dt, u_traj[:, 0], color='C0', label=r'$u_1$')
+        # ax2.plot(np.arange(tsteps) * dt, u_traj[:, 1], color='C1', label=r'$u_2$')
+        # ax2.set_xlabel('Time (s)')
+        # ax2.set_ylabel('Control')
+        # ax2.legend(loc=1)
 
-        ax3 = axes[2]
-        ax3.cla()
-        ax3.set_title('Objective vs. Iteration')
-        ax3.set_xlabel('Iteration')
-        ax3.set_ylabel('Objective')
-        ax3.plot(loss_list, color='C3')
-        ax3.set_yscale('log')
+        # ax3 = axes[2]
+        # ax3.cla()
+        # ax3.set_title('Objective vs. Iteration')
+        # ax3.set_xlabel('Iteration')
+        # ax3.set_ylabel('Objective')
+        # ax3.plot(loss_list, color='C3')
+        # ax3.set_yscale('log')
 
         self.fig.tight_layout()
         self.fig.canvas.draw()
@@ -233,7 +275,16 @@ class ErgodicPlanner(Node):
         Updates initial state x0 for planning.
         """
         self.position = msg.position.position
+
+        # update state of x0 used in planner
         self.x0 = np.array([self.position.x, self.position.y])
+
+        # if we are recording and if this is a new spot, track it in buffer
+        if self.state == State.RECORDING:
+            if len(self.recordBuffer) < 1 or np.any(
+                np.abs(self.recordBuffer[-1] - [self.position.x, self.position.y]) > 0.001
+            ):
+                self.recordBuffer.append(np.array([self.position.x, self.position.y]))
 
     def timer_callback(self):
         """
@@ -243,14 +294,15 @@ class ErgodicPlanner(Node):
         """
         if self.position is not None:
             if self.state == State.IDLE:
-                self.plan()
-                self.state = State.READY
+                if len(self.currentTraj) > 0:
+                    self.plan()
+                    self.state = State.READY
             if self.state == State.READY or self.state == State.MOVING:
                 self.draw()
             if self.state == State.MOVING:
                 if math.dist(self.x0, self.goal) < 0.02:
                     self.goalIndex += 1
-                self.goal = self.x_traj[self.goalIndex]
+                self.goal = self.x_traj[self.goalIndex] + self.dim_root
 
                 msg = Point()
                 msg.x = self.goal[0]
@@ -271,6 +323,12 @@ class ErgodicPlanner(Node):
                 rclpy.shutdown()
             if user_input == 'moving':
                 self.state = State.MOVING
+            if user_input == 'record':
+                self.state = State.RECORDING
+                label = input('Recording. Type "good" or "bad" to complete the capture and provide a label: ')
+                self.currentTraj = self.recordBuffer
+                self.recordBuffer = []
+                self.state = State.IDLE
 
 
 def main(args=None):
