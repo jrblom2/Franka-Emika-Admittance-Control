@@ -28,8 +28,8 @@ x0 = np.array([0.30, 0.25])
 # generate a spiral trajectory as the initial control
 init_x_traj = np.array(
     [
-        np.linspace(0.0, 0.32, tsteps + 1) * np.cos(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
-        np.linspace(0.0, 0.28, tsteps + 1) * np.sin(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
+        np.linspace(0.0, 0.32, tsteps + 1) * -np.cos(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
+        np.linspace(0.0, 0.28, tsteps + 1) * -np.sin(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
     ]
 ).T
 init_x_traj += x0

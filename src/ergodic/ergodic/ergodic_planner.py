@@ -142,7 +142,7 @@ class ErgodicPlanner(Node):
         #     phik = np.sum(fk_vals * pdf_vals) * dx * dy
         #     phik_list[i] = phik
 
-        phik_list = sum(self.phiKFromTraj(traj - self.dim_root) for traj in self.currentTrajectories)
+        phik_list = sum(self.phiKFromTraj(traj[2] - self.dim_root) for traj in self.currentTrajectories)
 
         pdf_recon = np.zeros(self.grids.shape[0])
         for i, (phik, k_vec) in enumerate(zip(phik_list, self.ks)):
@@ -182,8 +182,8 @@ class ErgodicPlanner(Node):
 
         temp_x_traj = np.array(
             [
-                np.linspace(0.0, 0.15, tsteps + 1) * np.cos(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
-                np.linspace(0.0, 0.15, tsteps + 1) * np.sin(np.linspace(0.0, 2 * np.pi, tsteps + 1)),
+                np.linspace(0.0, 0.15, tsteps + 1) * -np.cos(np.linspace(0.0, -2 * np.pi, tsteps + 1)),
+                np.linspace(0.0, 0.15, tsteps + 1) * -np.sin(np.linspace(0.0, -2 * np.pi, tsteps + 1)),
             ]
         ).T
         self.init_u_traj = (temp_x_traj[1:, :] - temp_x_traj[:-1, :]) / dt
@@ -241,8 +241,8 @@ class ErgodicPlanner(Node):
         ax1.set_ylabel('Y (m)')
         ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
         for traj in self.currentTrajectories:
-            trajX, trajY = zip(*traj)
-            ax1.plot(trajX, trajY, linestyle='-', color='green', linewidth=2, alpha=1.0)
+            trajX, trajY = zip(*traj[2])
+            ax1.plot(trajX, trajY, linestyle='-', linewidth=2, alpha=1.0, label=traj[0] + ' ' + traj[1])
         ax1.plot(
             x_traj[:, 0] + dim_root[0],
             x_traj[:, 1] + dim_root[1],
@@ -347,8 +347,8 @@ class ErgodicPlanner(Node):
                     'Recording. Type "name" and either "good" or "bad" to complete the capture and provide a label: '
                 )
 
-                self.currentTrajectories.append(self.recordBuffer)
                 label = label.split()
+                self.currentTrajectories.append((label[0], label[1], self.recordBuffer))
                 outputFile = 'saved_data/trajectories/' + label[0] + '-' + label[1] + '.csv'
                 with open(outputFile, 'w', newline='') as csvFile:
                     csv_writer = csv.writer(csvFile)
@@ -364,7 +364,9 @@ class ErgodicPlanner(Node):
                     csv_reader = csv.reader(csvfile)
                     for row in csv_reader:
                         points.append(np.array(row, dtype=np.float64))
-                self.currentTrajectories.append(points)
+                namePortion = fileName.split('.')
+                label = namePortion[0].split('-')
+                self.currentTrajectories.append((label[0], label[1], points))
                 print('Trajectory loaded')
 
             if user_input == 'plan':
