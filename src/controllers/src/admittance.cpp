@@ -172,6 +172,8 @@ int main(int argc, char** argv) {
 
   Eigen::Vector3d latest_goal;
   std::mutex goal_mutex;
+  bool use_goal_point = false;
+  std::mutex use_goal_mutex;
 
   try {
     // connect to robot
@@ -392,7 +394,7 @@ int main(int argc, char** argv) {
       ddx_d << virtual_mass.inverse() * (base_fext - (damping * jac_vel) - (stiffness * error));
 
       // follow ergodic goals
-      if (use_ergodic_force) {
+      if (use_ergodic_force && use_goal_point) {
         ddx_d.head(3) -= ergodic_gains * (position - latest_goal);
       }
 
@@ -522,7 +524,7 @@ int main(int argc, char** argv) {
 
     // data bridge through ROS2 setup
     if (ros2_publish == "TRUE") {
-      auto node = std::make_shared<MinimalPublisher>(transfer_package, latest_goal, goal_mutex);
+      auto node = std::make_shared<MinimalPublisher>(transfer_package, latest_goal, goal_mutex, use_goal_point, use_goal_mutex);
       node->init();
       executor.add_node(node);
       spin_thread = std::thread([&executor, node]() { executor.spin(); });

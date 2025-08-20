@@ -1,8 +1,8 @@
 #include "minimal_publisher.hpp"
 
 MinimalPublisher::MinimalPublisher(SafeQueue<queue_package> & squeue_transfer, Eigen::Vector3d & goal,
-    std::mutex & goal_mutex)
-: Node("minimal_publisher"), squeue_transfer_(squeue_transfer), goal_(goal), goal_mutex_(goal_mutex)
+    std::mutex & goal_mutex, bool & use_goal, std::mutex & use_goal_mutex)
+: Node("minimal_publisher"), squeue_transfer_(squeue_transfer), goal_(goal), goal_mutex_(goal_mutex), use_goal_point_(use_goal), use_goal_mutex_(use_goal_mutex)
 {}
 
 void MinimalPublisher::init() {
@@ -15,6 +15,16 @@ void MinimalPublisher::init() {
     goal_ << msg->x, msg->y, msg->z;
   }
   );
+
+  toggle_goal_service_ = this->create_service<std_srvs::srv::SetBool>(
+  "toggle_goal_usage",
+  [this](const std::shared_ptr<std_srvs::srv::SetBool::Request> request, std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
+    std::lock_guard<std::mutex> lock(use_goal_mutex_);
+    use_goal_point_ = request->data;
+    response->success = true;
+  }
+  );
+ 
 
   auto timer_callback = [this]() -> void {
     queue_package data;

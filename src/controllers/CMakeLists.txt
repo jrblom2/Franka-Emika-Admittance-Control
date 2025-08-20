@@ -12,6 +12,7 @@ find_package(Eigen3 REQUIRED)
 find_package(data_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(std_srvs REQUIRED)
 
 # build ft sensor
 add_subdirectory(src/net_ft)
@@ -38,6 +39,7 @@ ament_target_dependencies(utilities
   rclcpp
   data_interfaces
   ament_index_cpp
+  std_srvs
 )
 
 set(EXAMPLES

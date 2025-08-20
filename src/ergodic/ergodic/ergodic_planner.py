@@ -6,6 +6,9 @@ import numpy as np
 import rclpy
 from geometry_msgs.msg._point import Point
 from rclpy.node import Node
+from std_srvs.srv import SetBool
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+
 from scipy.stats import multivariate_normal as mvn
 
 from data_interfaces.msg import Robot
@@ -49,12 +52,14 @@ class ErgodicPlanner(Node):
         super().__init__('ergodic_planner')
         self.robot_state_subscription = self.create_subscription(Robot, 'robot_data', self.listener_callback, 10)
         self.ergodic_goal_publisher = self.create_publisher(Point, 'ergodic_goal', 10)
+        self.service_group = MutuallyExclusiveCallbackGroup()
+        self.ergodic_goal_toggle = self.create_client(SetBool, 'toggle_goal_usage', callback_group=self.service_group)
+        self.sending_goal = False
         self.robot_state_subscription  # prevent unused variable warning
         self.timer = self.create_timer(0.1, self.timer_callback)
 
         # manage user input
         self.running = True
-        self.get_logger().info('Node started. Type "shutdown" to stop the node.')
         self.input_thread = threading.Thread(target=self.user_input_loop, daemon=True)
 
         self.recordBuffer = []
@@ -310,8 +315,20 @@ class ErgodicPlanner(Node):
                 msg.z = self.staticHeight
                 self.ergodic_goal_publisher.publish(msg)
 
+                if not self.sending_goal:
+                    req = SetBool.Request()
+                    req.data = True
+                    self.future = self.ergodic_goal_toggle.call_async(req)
+                    rclpy.spin_until_future_complete(self, self.future)
+                    self.sending_goal = True
+
                 if self.goalIndex > len(self.x_traj) - 2:
                     self.state = State.IDLE
+                    req = SetBool.Request()
+                    req.data = False
+                    self.future = self.ergodic_goal_toggle.call_async(req)
+                    rclpy.spin_until_future_complete(self, self.future)
+                    self.sending_goal = False
                     self.goalIndex = 0
 
     def user_input_loop(self):
