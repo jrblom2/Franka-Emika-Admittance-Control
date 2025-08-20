@@ -15,6 +15,7 @@ from data_interfaces.msg import Robot
 from ergodic.sandbox import iLQR_ergodic_pointmass
 import threading
 from enum import auto, Enum
+import csv
 
 np.set_printoptions(precision=4)
 rng = np.random.default_rng(1)
@@ -34,6 +35,7 @@ class State(Enum):
     """Enum to represent the current state of the planner."""
 
     IDLE = auto()
+    PLANNING = auto()
     RECORDING = auto()
     READY = auto()
     MOVING = auto()
@@ -63,6 +65,7 @@ class ErgodicPlanner(Node):
         self.input_thread = threading.Thread(target=self.user_input_loop, daemon=True)
 
         self.recordBuffer = []
+        self.currentTrajectories = []
         self.currentTraj = []
         self.pdf_recon = None
 
@@ -298,12 +301,17 @@ class ErgodicPlanner(Node):
         Handles planning, visualization, and goal publishing.
         """
         if self.position is not None:
+            # idle is resting state, indicates no path is loaded
             if self.state == State.IDLE:
                 if len(self.currentTraj) > 0:
                     self.plan()
                     self.state = State.READY
+
+            # if a path is loaded, we can draw
             if self.state == State.READY or self.state == State.MOVING:
                 self.draw()
+
+            # if we are moving, start sending waypoints to the controller
             if self.state == State.MOVING:
                 if math.dist(self.x0, self.goal) < 0.02:
                     self.goalIndex += 1
@@ -315,6 +323,7 @@ class ErgodicPlanner(Node):
                 msg.z = self.staticHeight
                 self.ergodic_goal_publisher.publish(msg)
 
+                # tell the controller to begin listening to waypoints
                 if not self.sending_goal:
                     req = SetBool.Request()
                     req.data = True
@@ -322,7 +331,8 @@ class ErgodicPlanner(Node):
                     rclpy.spin_until_future_complete(self, self.future)
                     self.sending_goal = True
 
-                if self.goalIndex > len(self.x_traj) - 2:
+                # if we have reached the end of the planned trajectory, disable controller waypoints and return to idle
+                if self.goalIndex > len(self.x_traj) - 1:
                     self.state = State.IDLE
                     req = SetBool.Request()
                     req.data = False
@@ -333,19 +343,47 @@ class ErgodicPlanner(Node):
 
     def user_input_loop(self):
         """Thread loop that listens for user input from the terminal."""
+        print('Available states: shutdown, record, load, plan, moving')
         while not self.state == State.SHUTDOWN:
-            user_input = input('Enter command: ').strip().lower()
+            user_input = input('Enter state: ').strip().lower()
+
+            # kill the app
             if user_input == 'shutdown':
                 self.state = State.SHUTDOWN
                 rclpy.shutdown()
+
+            # begin sending waypoints to follow a planned trajectory
             if user_input == 'moving':
                 self.state = State.MOVING
+
+            # record a new trajectory from the arm and write to a file
             if user_input == 'record':
                 self.state = State.RECORDING
-                label = input('Recording. Type "good" or "bad" to complete the capture and provide a label: ')
+                label = input(
+                    'Recording. Type "name" and either "good" or "bad" to complete the capture and provide a label: '
+                )
                 self.currentTraj = self.recordBuffer
+                label = label.split()
+                outputFile = 'saved_data/trajectories/' + label[0] + '-' + label[1] + '.csv'
+                with open(outputFile, 'w', newline='') as csvFile:
+                    csv_writer = csv.writer(csvFile)
+                    csv_writer.writerows(self.currentTraj)
                 self.recordBuffer = []
                 self.state = State.IDLE
+
+            # load a trajectory from a file and save the trajectory
+            if user_input == 'load':
+                fileName = input('Provide the name of the csv file to be loaded: ')
+                points = []
+                with open('saved_data/trajectories/' + fileName, 'r', newline='') as csvfile:
+                    csv_reader = csv.reader(csvfile)
+                    for row in csv_reader:
+                        points.append(np.array(row, dtype=np.float64))
+                self.currentTraj = points
+                print('Trajectory loaded')
+
+            if user_input == 'plan':
+                self.state = State.PLANNING
 
 
 def main(args=None):
