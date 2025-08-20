@@ -141,7 +141,8 @@ class ErgodicPlanner(Node):
         #     fk_vals /= hk
         #     phik = np.sum(fk_vals * pdf_vals) * dx * dy
         #     phik_list[i] = phik
-        phik_list = self.phiKFromTraj(self.currentTraj - self.dim_root)
+
+        phik_list = sum(self.phiKFromTraj(traj - self.dim_root) for traj in self.currentTrajectories)
 
         pdf_recon = np.zeros(self.grids.shape[0])
         for i, (phik, k_vec) in enumerate(zip(phik_list, self.ks)):
@@ -230,7 +231,6 @@ class ErgodicPlanner(Node):
         grids_x = self.grids_x
         grids_y = self.grids_y
 
-        trajX, trajY = zip(*self.currentTraj)
         ax1 = axes[0]
         ax1.cla()
         ax1.set_aspect('equal', adjustable='box')
@@ -240,7 +240,9 @@ class ErgodicPlanner(Node):
         ax1.set_xlabel('X (m)')
         ax1.set_ylabel('Y (m)')
         ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
-        ax1.plot(trajX, trajY, linestyle='-', color='green', linewidth=2, alpha=1.0)
+        for traj in self.currentTrajectories:
+            trajX, trajY = zip(*traj)
+            ax1.plot(trajX, trajY, linestyle='-', color='green', linewidth=2, alpha=1.0)
         ax1.plot(
             x_traj[:, 0] + dim_root[0],
             x_traj[:, 1] + dim_root[1],
@@ -252,24 +254,6 @@ class ErgodicPlanner(Node):
         )
         ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot')
         ax1.legend(loc=1)
-
-        # ax2 = axes[1]
-        # ax2.cla()
-        # ax2.set_title('Control vs. Time')
-        # ax2.set_ylim(-1.1, 1.1)
-        # ax2.plot(np.arange(tsteps) * dt, u_traj[:, 0], color='C0', label=r'$u_1$')
-        # ax2.plot(np.arange(tsteps) * dt, u_traj[:, 1], color='C1', label=r'$u_2$')
-        # ax2.set_xlabel('Time (s)')
-        # ax2.set_ylabel('Control')
-        # ax2.legend(loc=1)
-
-        # ax3 = axes[2]
-        # ax3.cla()
-        # ax3.set_title('Objective vs. Iteration')
-        # ax3.set_xlabel('Iteration')
-        # ax3.set_ylabel('Objective')
-        # ax3.plot(loss_list, color='C3')
-        # ax3.set_yscale('log')
 
         self.fig.tight_layout()
         self.fig.canvas.draw()
@@ -302,8 +286,8 @@ class ErgodicPlanner(Node):
         """
         if self.position is not None:
             # idle is resting state, indicates no path is loaded
-            if self.state == State.IDLE:
-                if len(self.currentTraj) > 0:
+            if self.state == State.PLANNING:
+                if len(self.currentTrajectories) > 0:
                     self.plan()
                     self.state = State.READY
 
@@ -362,12 +346,13 @@ class ErgodicPlanner(Node):
                 label = input(
                     'Recording. Type "name" and either "good" or "bad" to complete the capture and provide a label: '
                 )
-                self.currentTraj = self.recordBuffer
+
+                self.currentTrajectories.append(self.recordBuffer)
                 label = label.split()
                 outputFile = 'saved_data/trajectories/' + label[0] + '-' + label[1] + '.csv'
                 with open(outputFile, 'w', newline='') as csvFile:
                     csv_writer = csv.writer(csvFile)
-                    csv_writer.writerows(self.currentTraj)
+                    csv_writer.writerows(self.recordBuffer)
                 self.recordBuffer = []
                 self.state = State.IDLE
 
@@ -379,7 +364,7 @@ class ErgodicPlanner(Node):
                     csv_reader = csv.reader(csvfile)
                     for row in csv_reader:
                         points.append(np.array(row, dtype=np.float64))
-                self.currentTraj = points
+                self.currentTrajectories.append(points)
                 print('Trajectory loaded')
 
             if user_input == 'plan':
