@@ -259,6 +259,10 @@ class ErgodicPlanner(Node):
         ax1.set_title('Map')
         ax1.set_xlabel('X (m)')
         ax1.set_ylabel('Y (m)')
+        if self.state == State.RECORDING:
+            recordX, recordY = zip(*self.recordBuffer)
+            ax1.plot(recordX, recordY, linestyle='-', linewidth=2, alpha=1.0, label='Recording')
+
         if self.state == State.READY or self.state == State.MOVING:
             ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
             # ax1.plot(
@@ -293,6 +297,7 @@ class ErgodicPlanner(Node):
             ax2.cla()
             ax2.set_title('Control vs. Time')
             ax2.set_ylim(-1.1, 1.1)
+            ax2.set_xlim(0.0, 10.0)
             ax2.plot(np.arange(tsteps) * dt, self.u_traj[:, 0], color='C0', label=r'$X vel$')
             ax2.plot(np.arange(tsteps) * dt, self.u_traj[:, 1], color='C1', label=r'$Y vel$')
             ax2.set_xlabel('Time (s)')
