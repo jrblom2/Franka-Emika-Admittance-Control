@@ -378,10 +378,10 @@ class ErgodicPlanner(Node):
             if self.state == State.PLANNING:
                 continue
 
-            print("\nAvailable commands:")
-            print("  shutdown - Stop app        | clear   - Clear trajectories")
-            print("  moving   - Start movement  | record  - Record a trajectory")
-            print("  load     - Load trajectory | plan    - Run ergodic planner")
+            print('\nAvailable commands:')
+            print('  shutdown - Stop app        | clear   - Clear trajectories')
+            print('  moving   - Start movement  | record  - Record a trajectory')
+            print('  load     - Load trajectory | plan    - Run ergodic planner')
             user_input = input('Enter state: ').strip().lower()
 
             # kill the app
