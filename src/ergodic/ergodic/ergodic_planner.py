@@ -26,9 +26,38 @@ cov1 = np.array([[0.01, 0.0], [0.0, 0.01]])
 w1 = 1.0
 
 
-def pdf(x):
-    """Return the probability density of a single Gaussian distribution evaluated at x."""
-    return w1 * mvn.pdf(x, mean1, cov1)
+def bounded_spiral(start_xy, bounds, tsteps=100, max_radius=0.15, num_loops=2):
+    """
+    Generate a spiral trajectory starting from a given point and staying within bounds.
+
+    Parameters:
+        start_xy (tuple): Starting point (x, y).
+        bounds (tuple): ((xmin, xmax), (ymin, ymax))
+        tsteps (int): Number of steps.
+        max_radius (float): Maximum spiral radius.
+        num_loops (float): How many loops in the spiral.
+
+    Returns:
+        np.ndarray of shape (tsteps+1, 2)
+    """
+    xmax = bounds[0]
+    ymax = bounds[1]
+
+    # Define spiral in polar coordinates
+    r = np.linspace(0.0, max_radius, tsteps + 1)
+    theta = np.linspace(0.0, num_loops * 2 * np.pi, tsteps + 1)
+
+    dx = r * np.cos(theta)
+    dy = r * np.sin(theta)
+
+    spiral = np.stack([dx, dy], axis=1)
+    traj = spiral + np.array(start_xy)
+
+    # Clip trajectory to stay within bounds
+    traj[:, 0] = np.clip(traj[:, 0], 0.01, xmax - 0.01)
+    traj[:, 1] = np.clip(traj[:, 1], 0.01, ymax - 0.01)
+
+    return traj
 
 
 class State(Enum):
@@ -71,14 +100,17 @@ class ErgodicPlanner(Node):
         self.state = State.IDLE
         self.position = None
         self.goal = np.array([0.35, 0.0])
+        self.x0 = np.array([0.35, 0.0])
         self.staticHeight = 0.590467
         self.goalIndex = 0
 
         # Define a 1-by-1 2D search space
         dim_root = np.array([0.30, -0.25])
         self.dim_root = dim_root
-        L_list = np.array([0.45, 0.5])
+        L_list = np.array([0.40, 0.5])
         self.L_list = L_list
+        self.dt = 0.05
+        self.tsteps = 200
 
         # Discretize the search space into 100-by-100 mesh grids
         grids_x, grids_y = np.meshgrid(
@@ -131,16 +163,6 @@ class ErgodicPlanner(Node):
 
         The resulting trajectory and loss history are stored.
         """
-        # Coefficients for target distribution
-        # phik_list = np.zeros(ks.shape[0])
-        # pdf_vals = pdf(grids)
-        # self.pdf_vals = pdf_vals
-        # for i, (k_vec, hk) in enumerate(zip(ks, hk_list)):
-        #     fk_vals = np.prod(np.cos(np.pi * k_vec / L_list * grids), axis=1)
-        #     fk_vals /= hk
-        #     phik = np.sum(fk_vals * pdf_vals) * dx * dy
-        #     phik_list[i] = phik
-
         # good trajectories represent posotive weighting while bad trajectories represent negative
         phiks = []
         for traj in self.currentTrajectories:
@@ -163,11 +185,9 @@ class ErgodicPlanner(Node):
         self.pdf_recon = pdf_recon
 
         # Trajectory optimizer setup
-        dt = 0.05
-        self.dt = dt
-        tsteps = 200
-        self.tsteps = tsteps
-        R = np.diag([0.01, 0.01])
+        dt = self.dt
+        tsteps = self.tsteps
+        R = np.diag([0.1, 0.1])
         Q_z = np.diag([0.1, 0.1])
         R_v = np.diag([0.01, 0.01])
 
@@ -186,15 +206,12 @@ class ErgodicPlanner(Node):
             phik_list=phik_list,
         )
 
-        temp_x_traj = np.array(
-            [
-                np.linspace(0.0, 0.15, tsteps + 1) * -np.cos(np.linspace(0.0, -2 * np.pi, tsteps + 1)),
-                np.linspace(0.0, 0.15, tsteps + 1) * -np.sin(np.linspace(0.0, -2 * np.pi, tsteps + 1)),
-            ]
-        ).T
-        self.init_u_traj = (temp_x_traj[1:, :] - temp_x_traj[:-1, :]) / dt
+        x0 = self.x0 - self.dim_root
+        init_x_traj = bounded_spiral(x0, self.L_list, tsteps=tsteps)
+        self.init_x_traj = init_x_traj
+        init_u_traj = (init_x_traj[1:, :] - init_x_traj[:-1, :]) / dt
 
-        u_traj = self.init_u_traj.copy()
+        u_traj = init_u_traj.copy()
         loss_list = []
         x0 = self.x0 - self.dim_root
         # startTime = time.time()
@@ -227,7 +244,6 @@ class ErgodicPlanner(Node):
         axes = self.axes
         dim_root = self.dim_root
         L_list = self.L_list
-        x_traj = self.x_traj
         tsteps = self.tsteps
         x0 = self.x0
         dt = self.dt
@@ -243,31 +259,45 @@ class ErgodicPlanner(Node):
         ax1.set_title('Map')
         ax1.set_xlabel('X (m)')
         ax1.set_ylabel('Y (m)')
-        ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
+        if self.state == State.READY or self.state == State.MOVING:
+            ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
+            # ax1.plot(
+            #     self.init_x_traj[:, 0] + dim_root[0],
+            #     self.init_x_traj[:, 1] + dim_root[1],
+            #     linestyle='-',
+            #     marker='o',
+            #     markersize=2,
+            #     color='green',
+            #     linewidth=2,
+            #     alpha=1.0,
+            #     label='Initial Trajectory',
+            # )
+            ax1.plot(
+                self.x_traj[:, 0] + dim_root[0],
+                self.x_traj[:, 1] + dim_root[1],
+                linestyle='-',
+                marker='o',
+                color='k',
+                linewidth=2,
+                alpha=1.0,
+                label='Planned',
+            )
         for traj in self.currentTrajectories:
             trajX, trajY = zip(*traj[2])
             ax1.plot(trajX, trajY, linestyle='-', linewidth=2, alpha=1.0, label=traj[0] + ' ' + traj[1])
-        ax1.plot(
-            x_traj[:, 0] + dim_root[0],
-            x_traj[:, 1] + dim_root[1],
-            linestyle='-',
-            marker='o',
-            color='k',
-            linewidth=2,
-            alpha=1.0,
-        )
         ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot')
         ax1.legend(loc=1)
 
-        ax2 = axes[1]
-        ax2.cla()
-        ax2.set_title('Control vs. Time')
-        ax2.set_ylim(-1.1, 1.1)
-        ax2.plot(np.arange(tsteps) * dt, self.u_traj[:, 0], color='C0', label=r'$X vel$')
-        ax2.plot(np.arange(tsteps) * dt, self.u_traj[:, 1], color='C1', label=r'$Y vel$')
-        ax2.set_xlabel('Time (s)')
-        ax2.set_ylabel('Control')
-        ax2.legend(loc=1)
+        if self.state == State.READY or self.state == State.MOVING:
+            ax2 = axes[1]
+            ax2.cla()
+            ax2.set_title('Control vs. Time')
+            ax2.set_ylim(-1.1, 1.1)
+            ax2.plot(np.arange(tsteps) * dt, self.u_traj[:, 0], color='C0', label=r'$X vel$')
+            ax2.plot(np.arange(tsteps) * dt, self.u_traj[:, 1], color='C1', label=r'$Y vel$')
+            ax2.set_xlabel('Time (s)')
+            ax2.set_ylabel('Control')
+            ax2.legend(loc=1)
 
         self.fig.tight_layout()
         self.fig.canvas.draw()
@@ -298,46 +328,43 @@ class ErgodicPlanner(Node):
 
         Handles planning, visualization, and goal publishing.
         """
-        if self.position is not None:
-            # idle is resting state, indicates no path is loaded
-            if self.state == State.PLANNING:
-                if len(self.currentTrajectories) > 0:
-                    self.plan()
-                    self.state = State.READY
+        # Note, no check for if robot is connected. Always verify position of real robot.
+        self.draw()
+        # idle is resting state, indicates no path is loaded
+        if self.state == State.PLANNING:
+            if len(self.currentTrajectories) > 0:
+                self.plan()
+                self.state = State.READY
 
-            # if a path is loaded, we can draw
-            if self.state == State.READY or self.state == State.MOVING:
-                self.draw()
+        # if we are moving, start sending waypoints to the controller
+        if self.state == State.MOVING:
+            if math.dist(self.x0, self.goal) < 0.02:
+                self.goalIndex += 1
+            self.goal = self.x_traj[self.goalIndex] + self.dim_root
 
-            # if we are moving, start sending waypoints to the controller
-            if self.state == State.MOVING:
-                if math.dist(self.x0, self.goal) < 0.02:
-                    self.goalIndex += 1
-                self.goal = self.x_traj[self.goalIndex] + self.dim_root
+            msg = Point()
+            msg.x = self.goal[0]
+            msg.y = self.goal[1]
+            msg.z = self.staticHeight
+            self.ergodic_goal_publisher.publish(msg)
 
-                msg = Point()
-                msg.x = self.goal[0]
-                msg.y = self.goal[1]
-                msg.z = self.staticHeight
-                self.ergodic_goal_publisher.publish(msg)
+            # tell the controller to begin listening to waypoints
+            if not self.sending_goal:
+                req = SetBool.Request()
+                req.data = True
+                self.future = self.ergodic_goal_toggle.call_async(req)
+                rclpy.spin_until_future_complete(self, self.future)
+                self.sending_goal = True
 
-                # tell the controller to begin listening to waypoints
-                if not self.sending_goal:
-                    req = SetBool.Request()
-                    req.data = True
-                    self.future = self.ergodic_goal_toggle.call_async(req)
-                    rclpy.spin_until_future_complete(self, self.future)
-                    self.sending_goal = True
-
-                # if we have reached the end of the planned trajectory, disable controller waypoints and return to idle
-                if self.goalIndex > len(self.x_traj) - 1:
-                    self.state = State.IDLE
-                    req = SetBool.Request()
-                    req.data = False
-                    self.future = self.ergodic_goal_toggle.call_async(req)
-                    rclpy.spin_until_future_complete(self, self.future)
-                    self.sending_goal = False
-                    self.goalIndex = 0
+            # if we have reached the end of the planned trajectory, disable controller waypoints and return to idle
+            if self.goalIndex > len(self.x_traj) - 2:
+                self.state = State.IDLE
+                req = SetBool.Request()
+                req.data = False
+                self.future = self.ergodic_goal_toggle.call_async(req)
+                rclpy.spin_until_future_complete(self, self.future)
+                self.sending_goal = False
+                self.goalIndex = 0
 
     def user_input_loop(self):
         """Thread loop that listens for user input from the terminal."""
