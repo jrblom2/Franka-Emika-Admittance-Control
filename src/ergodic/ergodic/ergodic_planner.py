@@ -16,6 +16,7 @@ from ergodic.sandbox import iLQR_ergodic_pointmass
 import threading
 from enum import auto, Enum
 import csv
+import colorsys
 
 np.set_printoptions(precision=4)
 rng = np.random.default_rng(1)
@@ -65,7 +66,6 @@ class State(Enum):
 
     IDLE = auto()
     PLANNING = auto()
-    RECORDING = auto()
     READY = auto()
     MOVING = auto()
     SHUTDOWN = auto()
@@ -98,6 +98,7 @@ class ErgodicPlanner(Node):
         self.pdf_recon = None
 
         self.state = State.IDLE
+        self.isRecording = False
         self.position = None
         self.goal = np.array([0.35, 0.0])
         self.x0 = np.array([0.35, 0.0])
@@ -127,7 +128,7 @@ class ErgodicPlanner(Node):
         self.grids = grids
 
         # Frequency vectors
-        num_k_per_dim = 10
+        num_k_per_dim = 15
         ks_dim1, ks_dim2 = np.meshgrid(np.arange(num_k_per_dim), np.arange(num_k_per_dim))
         ks = np.array([ks_dim1.ravel(), ks_dim2.ravel()]).T
         self.ks = ks
@@ -259,10 +260,8 @@ class ErgodicPlanner(Node):
         ax1.set_title('Map')
         ax1.set_xlabel('X (m)')
         ax1.set_ylabel('Y (m)')
-        if self.state == State.RECORDING:
-            recordX, recordY = zip(*self.recordBuffer)
-            ax1.plot(recordX, recordY, linestyle='-', linewidth=2, alpha=1.0, label='Recording')
 
+        # Plot Planning results
         if self.state == State.READY or self.state == State.MOVING:
             ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
             # ax1.plot(
@@ -286,12 +285,26 @@ class ErgodicPlanner(Node):
                 alpha=1.0,
                 label='Planned',
             )
-        for traj in self.currentTrajectories:
+
+        # Plot stored trajectories
+        for i, traj in enumerate(self.currentTrajectories):
             trajX, trajY = zip(*traj[2])
-            ax1.plot(trajX, trajY, linestyle='-', linewidth=2, alpha=1.0, label=traj[0] + ' ' + traj[1])
+            hue = (0.3 + i * 0.07) % 1.0
+            r, g, b = colorsys.hsv_to_rgb(hue, 0.9, 0.9)
+            ax1.plot(
+                trajX, trajY, linestyle='-', linewidth=2, color=(r, g, b), alpha=1.0, label=traj[0] + ' ' + traj[1]
+            )
+
+        # If there is any recording going on, show it
+        if len(self.recordBuffer) > 0:
+            recordX, recordY = zip(*self.recordBuffer)
+            ax1.plot(recordX, recordY, linestyle='-', linewidth=2, color='C0', alpha=1.0, label='Recording')
+
+        # Plot robot
         ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot')
         ax1.legend(loc=1)
 
+        # Insight into controls
         if self.state == State.READY or self.state == State.MOVING:
             ax2 = axes[1]
             ax2.cla()
@@ -321,7 +334,7 @@ class ErgodicPlanner(Node):
         self.x0 = np.array([self.position.x, self.position.y])
 
         # if we are recording and if this is a new spot, track it in buffer
-        if self.state == State.RECORDING:
+        if self.isRecording:
             if len(self.recordBuffer) < 1 or np.any(
                 np.abs(self.recordBuffer[-1] - [self.position.x, self.position.y]) > 0.001
             ):
@@ -371,13 +384,14 @@ class ErgodicPlanner(Node):
                 self.sending_goal = False
                 self.goalIndex = 0
 
+                # save trajectory that was just executed but dont write to file
+                self.currentTrajectories.append(('Run', 'good', self.recordBuffer))
+                self.recordBuffer = []
+                self.isRecording = False
+
     def user_input_loop(self):
         """Thread loop that listens for user input from the terminal."""
         while not self.state == State.SHUTDOWN:
-            # do not prompt if planning is in progress
-            if self.state == State.PLANNING:
-                continue
-
             print('\nAvailable commands:')
             print('  shutdown - Stop app        | clear   - Clear trajectories')
             print('  moving   - Start movement  | record  - Record a trajectory')
@@ -396,10 +410,11 @@ class ErgodicPlanner(Node):
             # begin sending waypoints to follow a planned trajectory
             if user_input == 'moving':
                 self.state = State.MOVING
+                self.isRecording = True
 
             # record a new trajectory from the arm and write to a file
             if user_input == 'record':
-                self.state = State.RECORDING
+                self.isRecording = True
                 label = input(
                     'Recording. Type "name" and either "good" or "bad" to complete the capture and provide a label: '
                 )
@@ -411,7 +426,7 @@ class ErgodicPlanner(Node):
                     csv_writer = csv.writer(csvFile)
                     csv_writer.writerows(self.recordBuffer)
                 self.recordBuffer = []
-                self.state = State.IDLE
+                self.isRecording = False
 
             # load a trajectory from a file and save the trajectory
             if user_input == 'load':
