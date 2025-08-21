@@ -373,14 +373,25 @@ class ErgodicPlanner(Node):
 
     def user_input_loop(self):
         """Thread loop that listens for user input from the terminal."""
-        print('Available states: shutdown, record, load, plan, moving')
         while not self.state == State.SHUTDOWN:
+            # do not prompt if planning is in progress
+            if self.state == State.PLANNING:
+                continue
+
+            print("\nAvailable commands:")
+            print("  shutdown - Stop app        | clear   - Clear trajectories")
+            print("  moving   - Start movement  | record  - Record a trajectory")
+            print("  load     - Load trajectory | plan    - Run ergodic planner")
             user_input = input('Enter state: ').strip().lower()
 
             # kill the app
             if user_input == 'shutdown':
                 self.state = State.SHUTDOWN
                 rclpy.shutdown()
+
+            # clear trajectories in memory
+            if user_input == 'clear':
+                self.currentTrajectories = []
 
             # begin sending waypoints to follow a planned trajectory
             if user_input == 'moving':
