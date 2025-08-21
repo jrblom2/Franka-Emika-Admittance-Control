@@ -66,7 +66,6 @@ class ErgodicPlanner(Node):
 
         self.recordBuffer = []
         self.currentTrajectories = []
-        self.currentTraj = []
         self.pdf_recon = None
 
         self.state = State.IDLE
@@ -142,7 +141,14 @@ class ErgodicPlanner(Node):
         #     phik = np.sum(fk_vals * pdf_vals) * dx * dy
         #     phik_list[i] = phik
 
-        phik_list = sum(self.phiKFromTraj(traj[2] - self.dim_root) for traj in self.currentTrajectories)
+        # good trajectories represent posotive weighting while bad trajectories represent negative
+        phiks = []
+        for traj in self.currentTrajectories:
+            if traj[1] == 'good':
+                phiks.append(1.0 * self.phiKFromTraj(traj[2] - self.dim_root))
+            else:
+                phiks.append(-0.5 * self.phiKFromTraj(traj[2] - self.dim_root))
+        phik_list = sum(phiks)
 
         pdf_recon = np.zeros(self.grids.shape[0])
         for i, (phik, k_vec) in enumerate(zip(phik_list, self.ks)):
@@ -157,11 +163,11 @@ class ErgodicPlanner(Node):
         self.pdf_recon = pdf_recon
 
         # Trajectory optimizer setup
-        dt = 0.1
+        dt = 0.05
         self.dt = dt
-        tsteps = 100
+        tsteps = 200
         self.tsteps = tsteps
-        R = np.diag([0.0001, 0.0001])
+        R = np.diag([0.01, 0.01])
         Q_z = np.diag([0.1, 0.1])
         R_v = np.diag([0.01, 0.01])
 
@@ -222,11 +228,9 @@ class ErgodicPlanner(Node):
         dim_root = self.dim_root
         L_list = self.L_list
         x_traj = self.x_traj
-        # tsteps = self.tsteps
+        tsteps = self.tsteps
         x0 = self.x0
-        # u_traj = self.u_traj
-        # dt = self.dt
-        # loss_list = self.loss_list
+        dt = self.dt
         pdf_vals = self.pdf_recon
         grids_x = self.grids_x
         grids_y = self.grids_y
@@ -254,6 +258,16 @@ class ErgodicPlanner(Node):
         )
         ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot')
         ax1.legend(loc=1)
+
+        ax2 = axes[1]
+        ax2.cla()
+        ax2.set_title('Control vs. Time')
+        ax2.set_ylim(-1.1, 1.1)
+        ax2.plot(np.arange(tsteps) * dt, self.u_traj[:, 0], color='C0', label=r'$X vel$')
+        ax2.plot(np.arange(tsteps) * dt, self.u_traj[:, 1], color='C1', label=r'$Y vel$')
+        ax2.set_xlabel('Time (s)')
+        ax2.set_ylabel('Control')
+        ax2.legend(loc=1)
 
         self.fig.tight_layout()
         self.fig.canvas.draw()
