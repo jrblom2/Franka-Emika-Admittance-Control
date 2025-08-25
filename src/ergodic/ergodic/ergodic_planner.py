@@ -94,6 +94,7 @@ class ErgodicPlanner(Node):
         self.input_thread = threading.Thread(target=self.user_input_loop, daemon=True)
 
         self.recordBuffer = []
+        self.recordLabels = []
         self.currentTrajectories = []
         self.pdf_recon = None
 
@@ -264,7 +265,7 @@ class ErgodicPlanner(Node):
 
         # Plot Planning results
         if self.state == State.READY or self.state == State.MOVING:
-            ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Reds')
+            ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Blues')
             # ax1.plot(
             #     self.init_x_traj[:, 0] + dim_root[0],
             #     self.init_x_traj[:, 1] + dim_root[1],
@@ -287,17 +288,33 @@ class ErgodicPlanner(Node):
                 label='Planned',
             )
 
-        # Plot stored trajectories
-        for i, traj in enumerate(self.currentTrajectories):
-            trajX, trajY = zip(*traj[2])
-            hue = (0.3 + i * 0.1) % 1.0
-            r, g, b = colorsys.hsv_to_rgb(hue, 0.9, 0.9)
-            ax1.plot(trajX, trajY, linestyle='-', linewidth=2, color=(r, g, b), alpha=1.0, label=traj[0])
+        # Plot stored trajectories if not moving
+        if self.state != State.MOVING:
+            for i, traj in enumerate(self.currentTrajectories):
+                trajX, trajY = zip(*traj[2])
+                hue = (0.3 + i * 0.1) % 1.0
+                r, g, b = colorsys.hsv_to_rgb(hue, 0.9, 0.9)
+                ax1.plot(trajX, trajY, linestyle='-', linewidth=2, color=(r, g, b), alpha=1.0, label=traj[0])
 
         # If there is any recording going on, show it
         if len(self.recordBuffer) > 0:
-            recordX, recordY = zip(*self.recordBuffer)
-            ax1.plot(recordX, recordY, linestyle='-', linewidth=2, color='C0', alpha=1.0, label='Recording')
+            # recordX, recordY = zip(*self.recordBuffer)
+            for i in range(len(self.recordBuffer) - 1):
+                linex0, liney0 = self.recordBuffer[i]
+                linex1, liney1 = self.recordBuffer[i + 1]
+
+                label = self.recordLabels[i]
+
+                # Choose color based on label
+                if label == 1:
+                    color = 'blue'
+                elif label == -1:
+                    color = 'red'
+                else:
+                    color = 'gray'
+
+                ax1.plot([linex0, linex1], [liney0, liney1], linestyle='-', linewidth=2, color=color, alpha=1.0)
+            # ax1.plot(recordX, recordY, linestyle='-', linewidth=2, color='C0', alpha=1.0, label='Recording')
 
         # Plot robot
         ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot')
@@ -338,6 +355,10 @@ class ErgodicPlanner(Node):
                 np.abs(self.recordBuffer[-1] - [self.position.x, self.position.y]) > 0.001
             ):
                 self.recordBuffer.append(np.array([self.position.x, self.position.y]))
+                if msg.actual_wrench.force.z < -5.0:
+                    self.recordLabels.append(-1)
+                else:
+                    self.recordLabels.append(1)
 
     def timer_callback(self):
         """
@@ -384,8 +405,9 @@ class ErgodicPlanner(Node):
                 self.goalIndex = 0
 
                 # save trajectory that was just executed but dont write to file
-                self.currentTrajectories.append(('Run', [1] * len(self.recordBuffer), self.recordBuffer))
+                self.currentTrajectories.append(('Run', self.recordLabels, self.recordBuffer))
                 self.recordBuffer = []
+                self.recordLabels = []
                 self.isRecording = False
 
     def user_input_loop(self):
@@ -419,15 +441,15 @@ class ErgodicPlanner(Node):
                 )
 
                 label = label.split()
-                marker = 1
-                if label[1] == 'bad':
-                    marker = -1
-                self.currentTrajectories.append((label[0], [marker] * len(self.recordBuffer), self.recordBuffer))
+                self.currentTrajectories.append((label[0], self.recordLabels, self.recordBuffer))
                 outputFile = 'saved_data/trajectories/' + label[0] + '-' + label[1] + '.csv'
                 with open(outputFile, 'w', newline='') as csvFile:
                     csv_writer = csv.writer(csvFile)
-                    csv_writer.writerows([row.tolist() + [marker] for row in self.recordBuffer])
+                    csv_writer.writerows(
+                        [row.tolist() + [self.recordLabels[i]] for i, row in enumerate(self.recordBuffer)]
+                    )
                 self.recordBuffer = []
+                self.recordLabels = []
                 self.isRecording = False
 
             # load a trajectory from a file and save the trajectory
