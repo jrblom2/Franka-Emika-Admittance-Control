@@ -146,13 +146,17 @@ class ErgodicPlanner(Node):
         self.fig, self.axes = plt.subplots(1, 2, dpi=70, figsize=(25, 20), tight_layout=True)
         self.input_thread.start()
 
-    def phiKFromTraj(self, x_traj):
+    def phiKFromTraj(self, x_traj, labels):
         """Produce the phik coefficients form a given x-y trajectory."""
         phik_list = np.zeros(self.ks.shape[0])
 
         for i, (k_vec, hk) in enumerate(zip(self.ks, self.hk_list)):
             fk_vals = np.prod(np.cos(np.pi * k_vec / self.L_list * x_traj), axis=1)
             fk_vals /= hk
+
+            # labels indicate whether the point in the trajectory is constructive or reductive
+            fk_vals = fk_vals * labels
+
             phik = np.mean(fk_vals)  # Time average
             phik_list[i] = phik
 
@@ -167,10 +171,7 @@ class ErgodicPlanner(Node):
         # good trajectories represent posotive weighting while bad trajectories represent negative
         phiks = []
         for traj in self.currentTrajectories:
-            if traj[1] == 'good':
-                phiks.append(1.0 * self.phiKFromTraj(traj[2] - self.dim_root))
-            else:
-                phiks.append(-0.5 * self.phiKFromTraj(traj[2] - self.dim_root))
+            phiks.append(self.phiKFromTraj(traj[2] - self.dim_root, traj[1]))
         phik_list = sum(phiks)
 
         pdf_recon = np.zeros(self.grids.shape[0])
@@ -289,11 +290,9 @@ class ErgodicPlanner(Node):
         # Plot stored trajectories
         for i, traj in enumerate(self.currentTrajectories):
             trajX, trajY = zip(*traj[2])
-            hue = (0.3 + i * 0.07) % 1.0
+            hue = (0.3 + i * 0.1) % 1.0
             r, g, b = colorsys.hsv_to_rgb(hue, 0.9, 0.9)
-            ax1.plot(
-                trajX, trajY, linestyle='-', linewidth=2, color=(r, g, b), alpha=1.0, label=traj[0] + ' ' + traj[1]
-            )
+            ax1.plot(trajX, trajY, linestyle='-', linewidth=2, color=(r, g, b), alpha=1.0, label=traj[0])
 
         # If there is any recording going on, show it
         if len(self.recordBuffer) > 0:
@@ -385,7 +384,7 @@ class ErgodicPlanner(Node):
                 self.goalIndex = 0
 
                 # save trajectory that was just executed but dont write to file
-                self.currentTrajectories.append(('Run', 'good', self.recordBuffer))
+                self.currentTrajectories.append(('Run', [1] * len(self.recordBuffer), self.recordBuffer))
                 self.recordBuffer = []
                 self.isRecording = False
 
@@ -420,11 +419,14 @@ class ErgodicPlanner(Node):
                 )
 
                 label = label.split()
-                self.currentTrajectories.append((label[0], label[1], self.recordBuffer))
+                marker = 1
+                if label[1] == 'bad':
+                    marker = -1
+                self.currentTrajectories.append((label[0], [marker] * len(self.recordBuffer), self.recordBuffer))
                 outputFile = 'saved_data/trajectories/' + label[0] + '-' + label[1] + '.csv'
                 with open(outputFile, 'w', newline='') as csvFile:
                     csv_writer = csv.writer(csvFile)
-                    csv_writer.writerows(self.recordBuffer)
+                    csv_writer.writerows([row.tolist() + [marker] for row in self.recordBuffer])
                 self.recordBuffer = []
                 self.isRecording = False
 
@@ -432,13 +434,16 @@ class ErgodicPlanner(Node):
             if user_input == 'load':
                 fileName = input('Provide the name of the csv file to be loaded: ')
                 points = []
+                markers = []
                 with open('saved_data/trajectories/' + fileName, 'r', newline='') as csvfile:
                     csv_reader = csv.reader(csvfile)
                     for row in csv_reader:
-                        points.append(np.array(row, dtype=np.float64))
+                        *point, marker = row
+                        points.append(np.array(point, dtype=np.float64))
+                        markers.append(int(marker))
                 namePortion = fileName.split('.')
                 label = namePortion[0].split('-')
-                self.currentTrajectories.append((label[0], label[1], points))
+                self.currentTrajectories.append((label[0], markers, points))
                 print('Trajectory loaded')
 
             if user_input == 'plan':
