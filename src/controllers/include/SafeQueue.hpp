@@ -17,6 +17,7 @@ struct queue_package {
 	Eigen::Matrix<double, 3, 1> orientation_error;
 	Eigen::Vector3d translation;
 	Eigen::Vector3d translation_d;
+	Eigen::Vector3d ergodic_accel;
 	Eigen::VectorXd velocity;
 	Eigen::VectorXd accel;
 	Eigen::VectorXd torques_d;

@@ -13,6 +13,7 @@ void robot_dump(const std::vector<queue_package> & data, bool full, int MAX_BUFF
     // Open file streams for each member
     std::ofstream desired_accel_file(output_dir / "desired_accel.csv");
     std::ofstream actual_wrench_file(output_dir / "actual_wrench.csv");
+    std::ofstream ergodic_accel_file(output_dir / "ergodic_accel.csv");
     std::ofstream orientation_error_file(output_dir / "orientation_error.csv");
     std::ofstream translation_file(output_dir / "translation.csv");
     std::ofstream translation_d_file(output_dir / "translation_d.csv");
@@ -29,6 +30,7 @@ void robot_dump(const std::vector<queue_package> & data, bool full, int MAX_BUFF
     // Set precision for floats
     desired_accel_file << std::fixed << std::setprecision(4);
     actual_wrench_file << std::fixed << std::setprecision(4);
+    ergodic_accel_file << std::fixed << std::setprecision(4);
     orientation_error_file << std::fixed << std::setprecision(4);
     translation_file << std::fixed << std::setprecision(4);
     translation_d_file << std::fixed << std::setprecision(4);
@@ -53,6 +55,9 @@ void robot_dump(const std::vector<queue_package> & data, bool full, int MAX_BUFF
 
         for (int i = 0; i < moment.actual_wrench.size(); ++i)
             actual_wrench_file << moment.actual_wrench(i) << (i < moment.actual_wrench.size() - 1 ? "," : "\n");
+
+        for (int i = 0; i < moment.ergodic_accel.size(); ++i)
+            ergodic_accel_file << moment.ergodic_accel(i) << (i < moment.ergodic_accel.size() - 1 ? "," : "\n");
 
         for (int i = 0; i < moment.orientation_error.size(); ++i)
             orientation_error_file << moment.orientation_error(i) << (i < moment.orientation_error.size() - 1 ? "," : "\n");

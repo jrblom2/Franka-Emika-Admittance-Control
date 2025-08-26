@@ -37,6 +37,10 @@ void MinimalPublisher::init() {
       message.accel.angular.y = data.desired_accel(4, 0);
       message.accel.angular.z = data.desired_accel(5, 0);
 
+      message.ergodic_accel.linear.x = data.ergodic_accel(0);
+      message.ergodic_accel.linear.y = data.ergodic_accel(1);
+      message.ergodic_accel.linear.z = data.ergodic_accel(2);
+
       message.actual_wrench.force.x = data.actual_wrench(0, 0);
       message.actual_wrench.force.y = data.actual_wrench(1, 0);
       message.actual_wrench.force.z = data.actual_wrench(2, 0);

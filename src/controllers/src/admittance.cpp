@@ -320,7 +320,7 @@ int main(int argc, char** argv) {
       static Eigen::Matrix<double, 6, 7> old_jacobian = jacobian;
       static Eigen::VectorXd old_velocity = Eigen::VectorXd::Zero(6);
       static Eigen::VectorXd old_position = position_6d;
-      static const double velocity_alpha = 0.1;
+      static const double alpha = 0.1;
       
       Eigen::Matrix<double, 6, 7> djacobian;
       Eigen::VectorXd velocity;
@@ -335,7 +335,7 @@ int main(int argc, char** argv) {
       } else {
         djacobian = (jacobian - old_jacobian)/duration.toSec();
         velocity_raw = (position_6d - old_position)/duration.toSec();
-        velocity = velocity_alpha * velocity_raw + (1.0 - velocity_alpha) * old_velocity;
+        velocity = alpha * velocity_raw + (1.0 - alpha) * old_velocity;
         accel = (velocity - old_velocity)/duration.toSec();
       }
 
@@ -394,8 +394,11 @@ int main(int argc, char** argv) {
       ddx_d << virtual_mass.inverse() * (base_fext - (damping * jac_vel) - (stiffness * error));
 
       // follow ergodic goals
+      Eigen::Vector3d ergodic_adjustment;
+      ergodic_adjustment.setZero();
       if (use_ergodic_force && use_goal_point) {
-        ddx_d.head(3) -= ergodic_gains * (position - latest_goal);
+        ergodic_adjustment = ergodic_gains * (position - latest_goal);
+        ddx_d.head(3) -= ergodic_adjustment;
       }
 
       // compute boundry acceleration to keep EE in bounds
@@ -485,6 +488,7 @@ int main(int argc, char** argv) {
         queue_package new_package;
         new_package.desired_accel = ddx_d;
         new_package.actual_wrench = base_fext;
+        new_package.ergodic_accel = ergodic_adjustment;
         new_package.orientation_error = orientation_error_axis_angle;
         new_package.translation = position;
         new_package.translation_d = predicted.head(3);
