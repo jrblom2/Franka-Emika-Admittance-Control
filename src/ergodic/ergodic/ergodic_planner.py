@@ -18,8 +18,14 @@ from enum import auto, Enum
 import csv
 import colorsys
 
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+
 np.set_printoptions(precision=4)
 rng = np.random.default_rng(1)
+
+cmap = cm.coolwarm_r
+norm = mcolors.Normalize(vmin=-1, vmax=1)
 
 # Define the target distribution
 mean1 = np.array([0.45, 0.00])
@@ -298,23 +304,16 @@ class ErgodicPlanner(Node):
 
         # If there is any recording going on, show it
         if len(self.recordBuffer) > 0:
-            # recordX, recordY = zip(*self.recordBuffer)
             for i in range(len(self.recordBuffer) - 1):
                 linex0, liney0 = self.recordBuffer[i]
                 linex1, liney1 = self.recordBuffer[i + 1]
 
                 label = self.recordLabels[i]
 
-                # Choose color based on label
-                if label == 1:
-                    color = 'blue'
-                elif label == -1:
-                    color = 'red'
-                else:
-                    color = 'gray'
+                # color map normalized between -1 and 1
+                color = cmap(norm(label))
 
                 ax1.plot([linex0, linex1], [liney0, liney1], linestyle='-', linewidth=2, color=color, alpha=1.0)
-            # ax1.plot(recordX, recordY, linestyle='-', linewidth=2, color='C0', alpha=1.0, label='Recording')
 
         # Plot robot
         ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot')
