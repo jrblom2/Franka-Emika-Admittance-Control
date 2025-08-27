@@ -24,13 +24,20 @@ import matplotlib.colors as mcolors
 np.set_printoptions(precision=4)
 rng = np.random.default_rng(1)
 
-cmap = cm.coolwarm_r
+cmap = cm.coolwarm
 norm = mcolors.Normalize(vmin=-1, vmax=1)
 
-# Define the target distribution
-mean1 = np.array([0.45, 0.00])
-cov1 = np.array([[0.01, 0.0], [0.0, 0.01]])
-w1 = 1.0
+
+def normalize_labels(labelList):
+    negatives = [val for val in labelList if val < 0]
+
+    if negatives:
+        min_val = min(negatives)  # Most negative value (e.g., -7.3)
+        normalizedLabels = [val if val == 1 else (val / abs(min_val)) for val in labelList]
+    else:
+        normalizedLabels = labelList[:]
+
+    return normalizedLabels
 
 
 def bounded_spiral(start_xy, bounds, tsteps=100, max_radius=0.15, num_loops=2):
@@ -118,7 +125,7 @@ class ErgodicPlanner(Node):
         L_list = np.array([0.40, 0.5])
         self.L_list = L_list
         self.dt = 0.05
-        self.tsteps = 200
+        self.tsteps = 100
 
         # Discretize the search space into 100-by-100 mesh grids
         grids_x, grids_y = np.meshgrid(
@@ -150,7 +157,9 @@ class ErgodicPlanner(Node):
             hk_list[i] = hk
 
         plt.ion()
-        self.fig, self.axes = plt.subplots(1, 2, dpi=70, figsize=(25, 20), tight_layout=True)
+        self.fig = plt.figure(figsize=(20, 20), constrained_layout=True)
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.colorbar = None
         self.input_thread.start()
 
     def phiKFromTraj(self, x_traj, labels):
@@ -176,9 +185,11 @@ class ErgodicPlanner(Node):
         The resulting trajectory and loss history are stored.
         """
         # good trajectories represent posotive weighting while bad trajectories represent negative
+        totalPoints = sum(len(traj[2]) for traj in self.currentTrajectories)
         phiks = []
         for traj in self.currentTrajectories:
-            phiks.append(self.phiKFromTraj(traj[2] - self.dim_root, traj[1]))
+            # normalize contributions based on number of points in original trajectory
+            phiks.append((len(traj[2]) / totalPoints) * traj[3])
         phik_list = sum(phiks)
 
         pdf_recon = np.zeros(self.grids.shape[0])
@@ -189,15 +200,15 @@ class ErgodicPlanner(Node):
 
             pdf_recon += phik * fk_vals
 
-        pdf_recon = np.maximum(pdf_recon, 0)
-        pdf_recon /= np.sum(pdf_recon) * self.dx * self.dy
+        # pdf_recon = np.maximum(pdf_recon, 0)
+        # pdf_recon /= np.sum(pdf_recon) * self.dx * self.dy
         self.pdf_recon = pdf_recon
 
         # Trajectory optimizer setup
         dt = self.dt
         tsteps = self.tsteps
-        R = np.diag([0.1, 0.1])
-        Q_z = np.diag([0.1, 0.1])
+        R = np.diag([0.2, 0.2])
+        Q_z = np.diag([0.5, 0.5])
         R_v = np.diag([0.01, 0.01])
 
         self.trajopt_ergodic_pointmass = iLQR_ergodic_pointmass(
@@ -250,29 +261,35 @@ class ErgodicPlanner(Node):
 
     def draw(self):
         """Update the plots with the current trajectory, control inputs, and objective history."""
-        axes = self.axes
+        ax = self.ax
         dim_root = self.dim_root
         L_list = self.L_list
-        tsteps = self.tsteps
         x0 = self.x0
-        dt = self.dt
         pdf_vals = self.pdf_recon
         grids_x = self.grids_x
         grids_y = self.grids_y
 
-        ax1 = axes[0]
-        ax1.cla()
-        ax1.set_aspect('equal', adjustable='box')
-        ax1.set_xlim(dim_root[0], dim_root[0] + L_list[0])
-        ax1.set_ylim(dim_root[1], dim_root[1] + L_list[1])
-        ax1.set_title('Map')
-        ax1.set_xlabel('X (m)')
-        ax1.set_ylabel('Y (m)')
+        ax.cla()
+        ax.set_aspect('equal', adjustable='box')
+        ax.set_xlim(dim_root[0], dim_root[0] + L_list[0])
+        ax.set_ylim(dim_root[1], dim_root[1] + L_list[1])
+        ax.minorticks_on()
+        ax.tick_params(which='both', direction='in', length=6)
+        ax.tick_params(which='minor', length=3, color='gray')
+        ax.set_title('Map')
+        ax.set_xlabel('X (m)')
+        ax.set_ylabel('Y (m)')
 
         # Plot Planning results
         if self.state == State.READY or self.state == State.MOVING:
-            ax1.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='Blues')
-            # ax1.plot(
+            contour = ax.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='coolwarm')
+
+            if self.colorbar is None:
+                self.colorbar = self.fig.colorbar(contour, ax=ax)
+            else:
+                self.colorbar.mappable.set_array(contour.collections[0].get_array())
+                self.colorbar.update_normal(contour)
+            # ax.plot(
             #     self.init_x_traj[:, 0] + dim_root[0],
             #     self.init_x_traj[:, 1] + dim_root[1],
             #     linestyle='-',
@@ -283,7 +300,7 @@ class ErgodicPlanner(Node):
             #     alpha=1.0,
             #     label='Initial Trajectory',
             # )
-            ax1.plot(
+            ax.plot(
                 self.x_traj[:, 0] + dim_root[0],
                 self.x_traj[:, 1] + dim_root[1],
                 linestyle='-',
@@ -296,11 +313,23 @@ class ErgodicPlanner(Node):
 
         # Plot stored trajectories if not moving
         if self.state != State.MOVING:
-            for i, traj in enumerate(self.currentTrajectories):
-                trajX, trajY = zip(*traj[2])
-                hue = (0.3 + i * 0.1) % 1.0
-                r, g, b = colorsys.hsv_to_rgb(hue, 0.9, 0.9)
-                ax1.plot(trajX, trajY, linestyle='-', linewidth=2, color=(r, g, b), alpha=1.0, label=traj[0])
+            for traj in self.currentTrajectories:
+                labels = traj[1]
+                for i in range(len(traj[2]) - 1):
+                    linex0, liney0 = traj[2][i]
+                    linex1, liney1 = traj[2][i + 1]
+
+                    label = labels[i]
+
+                    # color map normalized between -1 and 1
+                    color = cmap(norm(label))
+
+                    ax.plot([linex0, linex1], [liney0, liney1], linestyle='-', linewidth=2, color=color, alpha=1.0)
+            # for i, traj in enumerate(self.currentTrajectories):
+            #     trajX, trajY = zip(*self.currentTrajectories[-1][2])
+            #     hue = (0.3 + i * 0.1) % 1.0
+            #     r, g, b = colorsys.hsv_to_rgb(hue, 0.9, 0.9)
+            #     ax.plot(trajX, trajY, linestyle='-', linewidth=2, color=(r, g, b), alpha=1.0, label=traj[0])
 
         # If there is any recording going on, show it
         if len(self.recordBuffer) > 0:
@@ -313,26 +342,12 @@ class ErgodicPlanner(Node):
                 # color map normalized between -1 and 1
                 color = cmap(norm(label))
 
-                ax1.plot([linex0, linex1], [liney0, liney1], linestyle='-', linewidth=2, color=color, alpha=1.0)
+                ax.plot([linex0, linex1], [liney0, liney1], linestyle='-', linewidth=2, color=color, alpha=1.0)
 
         # Plot robot
-        ax1.plot(x0[0], x0[1], linestyle='', marker='o', markersize=15, color='C0', alpha=1.0, label='Robot')
-        ax1.legend(loc=1)
+        ax.plot(x0[0], x0[1], linestyle='', marker='o', markersize=10, color='C0', alpha=1.0, label='Robot')
+        ax.legend(loc=1)
 
-        # Insight into controls
-        if self.state == State.READY or self.state == State.MOVING:
-            ax2 = axes[1]
-            ax2.cla()
-            ax2.set_title('Control vs. Time')
-            ax2.set_ylim(-1.1, 1.1)
-            ax2.set_xlim(0.0, 10.0)
-            ax2.plot(np.arange(tsteps) * dt, self.u_traj[:, 0], color='C0', label=r'$X vel$')
-            ax2.plot(np.arange(tsteps) * dt, self.u_traj[:, 1], color='C1', label=r'$Y vel$')
-            ax2.set_xlabel('Time (s)')
-            ax2.set_ylabel('Control')
-            ax2.legend(loc=1)
-
-        self.fig.tight_layout()
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
         plt.pause(0.001)
@@ -354,10 +369,22 @@ class ErgodicPlanner(Node):
                 np.abs(self.recordBuffer[-1] - [self.position.x, self.position.y]) > 0.001
             ):
                 self.recordBuffer.append(np.array([self.position.x, self.position.y]))
-                if msg.actual_wrench.force.z < -5.0:
-                    self.recordLabels.append(-1)
+
+                # for the labels, only do dynamic labeling if the robot is providing force
+                if self.state == State.MOVING:
+                    magX = abs(msg.actual_wrench.force.x - msg.ergodic_accel.linear.x)
+                    magY = abs(msg.actual_wrench.force.y - msg.ergodic_accel.linear.y)
+                    # If the diff between the user force and the ergodic is non-trivial, use dynamic label
+                    if magX > 1.75 or magY > 1.75:
+                        self.recordLabels.append(-max(magX, magY))
+                    else:
+                        self.recordLabels.append(1.0)
+                    # if msg.actual_wrench.force.z < -5.0:
+                    #     self.recordLabels.append(-1)
+                    # else:
+                    #     self.recordLabels.append(1)
                 else:
-                    self.recordLabels.append(1)
+                    self.recordLabels.append(1.0)
 
     def timer_callback(self):
         """
@@ -375,7 +402,7 @@ class ErgodicPlanner(Node):
 
         # if we are moving, start sending waypoints to the controller
         if self.state == State.MOVING:
-            if math.dist(self.x0, self.goal) < 0.02:
+            if math.dist(self.x0, self.goal) < 0.04:
                 self.goalIndex += 1
             self.goal = self.x_traj[self.goalIndex] + self.dim_root
 
@@ -404,7 +431,12 @@ class ErgodicPlanner(Node):
                 self.goalIndex = 0
 
                 # save trajectory that was just executed but dont write to file
-                self.currentTrajectories.append(('Run', self.recordLabels, self.recordBuffer))
+                normalLabels = normalize_labels(self.recordLabels)
+                coefficients = self.phiKFromTraj(self.recordBuffer - self.dim_root, normalLabels)
+                self.currentTrajectories.append(('Run', normalLabels, self.recordBuffer, coefficients))
+                with open('saved_data/trajectories/run.csv', 'w', newline='') as csvFile:
+                    csv_writer = csv.writer(csvFile)
+                    csv_writer.writerows([row.tolist() + [normalLabels[i]] for i, row in enumerate(self.recordBuffer)])
                 self.recordBuffer = []
                 self.recordLabels = []
                 self.isRecording = False
@@ -440,7 +472,14 @@ class ErgodicPlanner(Node):
                 )
 
                 label = label.split()
-                self.currentTrajectories.append((label[0], self.recordLabels, self.recordBuffer))
+
+                # If this is a negative recording, label -1s instead
+                if label[1] == 'bad':
+                    self.recordLabels = [-1.0 * lab for lab in self.recordLabels]
+
+                coefficients = self.phiKFromTraj(self.recordBuffer - self.dim_root, self.recordLabels)
+                self.currentTrajectories.append((label[0], self.recordLabels, self.recordBuffer, coefficients))
+
                 outputFile = 'saved_data/trajectories/' + label[0] + '-' + label[1] + '.csv'
                 with open(outputFile, 'w', newline='') as csvFile:
                     csv_writer = csv.writer(csvFile)
@@ -461,10 +500,11 @@ class ErgodicPlanner(Node):
                     for row in csv_reader:
                         *point, marker = row
                         points.append(np.array(point, dtype=np.float64))
-                        markers.append(int(marker))
+                        markers.append(float(marker))
                 namePortion = fileName.split('.')
                 label = namePortion[0].split('-')
-                self.currentTrajectories.append((label[0], markers, points))
+                coefficients = self.phiKFromTraj(points - self.dim_root, markers)
+                self.currentTrajectories.append((label[0], markers, points, coefficients))
                 print('Trajectory loaded')
 
             if user_input == 'plan':
