@@ -372,17 +372,10 @@ class ErgodicPlanner(Node):
 
                 # for the labels, only do dynamic labeling if the robot is providing force
                 if self.state == State.MOVING:
-                    magX = abs(msg.actual_wrench.force.x - msg.ergodic_accel.linear.x)
-                    magY = abs(msg.actual_wrench.force.y - msg.ergodic_accel.linear.y)
-                    # If the diff between the user force and the ergodic is non-trivial, use dynamic label
-                    if magX > 1.75 or magY > 1.75:
-                        self.recordLabels.append(-max(magX, magY))
+                    if msg.actual_wrench.force.z < -5.0:
+                        self.recordLabels.append(1)
                     else:
-                        self.recordLabels.append(1.0)
-                    # if msg.actual_wrench.force.z < -5.0:
-                    #     self.recordLabels.append(-1)
-                    # else:
-                    #     self.recordLabels.append(1)
+                        self.recordLabels.append(-1)
                 else:
                     self.recordLabels.append(1.0)
 
