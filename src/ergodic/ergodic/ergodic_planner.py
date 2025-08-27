@@ -82,6 +82,8 @@ class State(Enum):
     READY = auto()
     MOVING = auto()
     SHUTDOWN = auto()
+    STOPPING = auto()
+    REPLAN = auto()
 
 
 class ErgodicPlanner(Node):
@@ -107,6 +109,9 @@ class ErgodicPlanner(Node):
         self.input_thread = threading.Thread(target=self.user_input_loop, daemon=True)
 
         self.recordBuffer = []
+        self.realPoints = []
+        self.avoidPoints = []
+        self.avoidLabels = []
         self.recordLabels = []
         self.currentTrajectories = []
         self.pdf_recon = None
@@ -344,6 +349,10 @@ class ErgodicPlanner(Node):
 
                 ax.plot([linex0, linex1], [liney0, liney1], linestyle='-', linewidth=2, color=color, alpha=1.0)
 
+        if len(self.realPoints) > 0:
+            rpxs, rpys = zip(*self.realPoints)
+            ax.plot(rpxs, rpys, linestyle='-', linewidth=2, color='green', alpha=1.0)
+
         # Plot robot
         ax.plot(x0[0], x0[1], linestyle='', marker='o', markersize=10, color='C0', alpha=1.0, label='Robot')
         ax.legend(loc=1)
@@ -368,23 +377,51 @@ class ErgodicPlanner(Node):
             if len(self.recordBuffer) < 1 or np.any(
                 np.abs(self.recordBuffer[-1] - [self.position.x, self.position.y]) > 0.001
             ):
-                self.recordBuffer.append(np.array([self.position.x, self.position.y]))
-
                 # for the labels, only do dynamic labeling if the robot is providing force
                 if self.state == State.MOVING:
-                    magX = abs(msg.actual_wrench.force.x - msg.ergodic_accel.linear.x)
-                    magY = abs(msg.actual_wrench.force.y - msg.ergodic_accel.linear.y)
-                    # If the diff between the user force and the ergodic is non-trivial, use dynamic label
-                    if magX > 1.75 or magY > 1.75:
-                        self.recordLabels.append(-max(magX, magY))
+                    # Compute the difference vector components
+                    dx = msg.actual_wrench.force.x - msg.ergodic_accel.linear.x
+                    dy = msg.actual_wrench.force.y - msg.ergodic_accel.linear.y
+
+                    diff_magnitude = math.sqrt(dx**2 + dy**2)
+
+                    if diff_magnitude > 1.75:
+                        self.recordBuffer.append(
+                            np.array([self.position.x + (0.01 * dx), self.position.y + (0.01 * dy)])
+                        )
+                        self.avoidPoints.append(np.array([self.position.x, self.position.y]))
+                        self.avoidLabels.append(-1.0)
                     else:
-                        self.recordLabels.append(1.0)
-                    # if msg.actual_wrench.force.z < -5.0:
-                    #     self.recordLabels.append(-1)
-                    # else:
-                    #     self.recordLabels.append(1)
+                        self.recordBuffer.append(np.array([self.position.x, self.position.y]))
+                    self.realPoints.append(np.array([self.position.x, self.position.y]))
                 else:
-                    self.recordLabels.append(1.0)
+                    self.recordBuffer.append(np.array([self.position.x, self.position.y]))
+
+                self.recordLabels.append(1.0)
+
+    def finish_run(self):
+        req = SetBool.Request()
+        req.data = False
+        self.future = self.ergodic_goal_toggle.call_async(req)
+        rclpy.spin_until_future_complete(self, self.future)
+        self.sending_goal = False
+        self.goalIndex = 0
+
+        # save trajectory that was just executed
+        normalLabels = normalize_labels(self.recordLabels)
+        coefficients = self.phiKFromTraj(self.recordBuffer - self.dim_root, normalLabels)
+        self.currentTrajectories.append(('Run', normalLabels, self.recordBuffer, coefficients))
+        avoidCoeff = self.phiKFromTraj(self.avoidPoints - self.dim_root, self.avoidLabels)
+        self.currentTrajectories.append(('avoid', self.avoidLabels, self.avoidPoints, avoidCoeff))
+        with open('saved_data/trajectories/run.csv', 'w', newline='') as csvFile:
+            csv_writer = csv.writer(csvFile)
+            csv_writer.writerows([row.tolist() + [normalLabels[i]] for i, row in enumerate(self.recordBuffer)])
+        self.recordBuffer = []
+        self.realPoints = []
+        self.recordLabels = []
+        self.avoidPoints = []
+        self.avoidLabels = []
+        self.isRecording = False
 
     def timer_callback(self):
         """
@@ -421,25 +458,14 @@ class ErgodicPlanner(Node):
                 self.sending_goal = True
 
             # if we have reached the end of the planned trajectory, disable controller waypoints and return to idle
-            if self.goalIndex > len(self.x_traj) - 2:
-                self.state = State.IDLE
-                req = SetBool.Request()
-                req.data = False
-                self.future = self.ergodic_goal_toggle.call_async(req)
-                rclpy.spin_until_future_complete(self, self.future)
-                self.sending_goal = False
-                self.goalIndex = 0
+            if self.goalIndex > 60:
+                self.finish_run()
+                self.plan()
+                self.isRecording = True
 
-                # save trajectory that was just executed but dont write to file
-                normalLabels = normalize_labels(self.recordLabels)
-                coefficients = self.phiKFromTraj(self.recordBuffer - self.dim_root, normalLabels)
-                self.currentTrajectories.append(('Run', normalLabels, self.recordBuffer, coefficients))
-                with open('saved_data/trajectories/run.csv', 'w', newline='') as csvFile:
-                    csv_writer = csv.writer(csvFile)
-                    csv_writer.writerows([row.tolist() + [normalLabels[i]] for i, row in enumerate(self.recordBuffer)])
-                self.recordBuffer = []
-                self.recordLabels = []
-                self.isRecording = False
+        if self.state == State.STOPPING:
+            self.finish_run()
+            self.state = State.IDLE
 
     def user_input_loop(self):
         """Thread loop that listens for user input from the terminal."""
@@ -454,6 +480,10 @@ class ErgodicPlanner(Node):
             if user_input == 'shutdown':
                 self.state = State.SHUTDOWN
                 rclpy.shutdown()
+
+            if user_input == 'stop':
+                print('Stopping')
+                self.state = State.STOPPING
 
             # clear trajectories in memory
             if user_input == 'clear':
@@ -487,6 +517,7 @@ class ErgodicPlanner(Node):
                         [row.tolist() + [self.recordLabels[i]] for i, row in enumerate(self.recordBuffer)]
                     )
                 self.recordBuffer = []
+                self.realPoints = []
                 self.recordLabels = []
                 self.isRecording = False
 
