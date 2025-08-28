@@ -109,9 +109,6 @@ class ErgodicPlanner(Node):
         self.input_thread = threading.Thread(target=self.user_input_loop, daemon=True)
 
         self.recordBuffer = []
-        self.realPoints = []
-        self.avoidPoints = []
-        self.avoidLabels = []
         self.recordLabels = []
         self.currentTrajectories = []
         self.pdf_recon = None
@@ -147,13 +144,13 @@ class ErgodicPlanner(Node):
         self.grids = grids
 
         # Frequency vectors
-        num_k_per_dim = 15
+        num_k_per_dim = 14
         ks_dim1, ks_dim2 = np.meshgrid(np.arange(num_k_per_dim), np.arange(num_k_per_dim))
         ks = np.array([ks_dim1.ravel(), ks_dim2.ravel()]).T
         self.ks = ks
 
         # Lambda and h_k coefficients
-        self.lamk_list = np.power(1.0 + np.linalg.norm(ks, axis=1), -3 / 2.0)
+        self.lamk_list = np.power(1.0 + np.linalg.norm(ks, axis=1), -5 / 2.0)
         hk_list = np.zeros(ks.shape[0])
         self.hk_list = hk_list
         for i, k_vec in enumerate(ks):
@@ -205,15 +202,15 @@ class ErgodicPlanner(Node):
 
             pdf_recon += phik * fk_vals
 
-        # pdf_recon = np.maximum(pdf_recon, 0)
-        # pdf_recon /= np.sum(pdf_recon) * self.dx * self.dy
+        pdf_recon = np.maximum(pdf_recon, 0)
+        pdf_recon /= np.sum(pdf_recon) * self.dx * self.dy
         self.pdf_recon = pdf_recon
 
         # Trajectory optimizer setup
         dt = self.dt
         tsteps = self.tsteps
-        R = np.diag([0.2, 0.2])
-        Q_z = np.diag([0.5, 0.5])
+        R = np.diag([0.1, 0.1])
+        Q_z = np.diag([0.1, 0.1])
         R_v = np.diag([0.01, 0.01])
 
         self.trajopt_ergodic_pointmass = iLQR_ergodic_pointmass(
@@ -349,12 +346,8 @@ class ErgodicPlanner(Node):
 
                 ax.plot([linex0, linex1], [liney0, liney1], linestyle='-', linewidth=2, color=color, alpha=1.0)
 
-        if len(self.realPoints) > 0:
-            rpxs, rpys = zip(*self.realPoints)
-            ax.plot(rpxs, rpys, linestyle='-', linewidth=2, color='green', alpha=1.0)
-
         # Plot robot
-        ax.plot(x0[0], x0[1], linestyle='', marker='o', markersize=10, color='C0', alpha=1.0, label='Robot')
+        ax.plot(x0[0], x0[1], linestyle='', marker='o', markersize=10, color='green', alpha=1.0, label='Robot')
         ax.legend(loc=1)
 
         self.fig.canvas.draw()
@@ -377,27 +370,12 @@ class ErgodicPlanner(Node):
             if len(self.recordBuffer) < 1 or np.any(
                 np.abs(self.recordBuffer[-1] - [self.position.x, self.position.y]) > 0.001
             ):
-                # for the labels, only do dynamic labeling if the robot is providing force
-                if self.state == State.MOVING:
-                    # Compute the difference vector components
-                    dx = msg.actual_wrench.force.x - msg.ergodic_accel.linear.x
-                    dy = msg.actual_wrench.force.y - msg.ergodic_accel.linear.y
+                self.recordBuffer.append(np.array([self.position.x, self.position.y]))
 
-                    diff_magnitude = math.sqrt(dx**2 + dy**2)
-
-                    if diff_magnitude > 1.75:
-                        self.recordBuffer.append(
-                            np.array([self.position.x + (0.01 * dx), self.position.y + (0.01 * dy)])
-                        )
-                        self.avoidPoints.append(np.array([self.position.x, self.position.y]))
-                        self.avoidLabels.append(-1.0)
-                    else:
-                        self.recordBuffer.append(np.array([self.position.x, self.position.y]))
-                    self.realPoints.append(np.array([self.position.x, self.position.y]))
+                if msg.actual_wrench.force.z < -5.0:
+                    self.recordLabels.append(1)
                 else:
-                    self.recordBuffer.append(np.array([self.position.x, self.position.y]))
-
-                self.recordLabels.append(1.0)
+                    self.recordLabels.append(-1)
 
     def finish_run(self):
         req = SetBool.Request()
@@ -411,16 +389,11 @@ class ErgodicPlanner(Node):
         normalLabels = normalize_labels(self.recordLabels)
         coefficients = self.phiKFromTraj(self.recordBuffer - self.dim_root, normalLabels)
         self.currentTrajectories.append(('Run', normalLabels, self.recordBuffer, coefficients))
-        avoidCoeff = self.phiKFromTraj(self.avoidPoints - self.dim_root, self.avoidLabels)
-        self.currentTrajectories.append(('avoid', self.avoidLabels, self.avoidPoints, avoidCoeff))
         with open('saved_data/trajectories/run.csv', 'w', newline='') as csvFile:
             csv_writer = csv.writer(csvFile)
             csv_writer.writerows([row.tolist() + [normalLabels[i]] for i, row in enumerate(self.recordBuffer)])
         self.recordBuffer = []
-        self.realPoints = []
         self.recordLabels = []
-        self.avoidPoints = []
-        self.avoidLabels = []
         self.isRecording = False
 
     def timer_callback(self):
@@ -503,10 +476,6 @@ class ErgodicPlanner(Node):
 
                 label = label.split()
 
-                # If this is a negative recording, label -1s instead
-                if label[1] == 'bad':
-                    self.recordLabels = [-1.0 * lab for lab in self.recordLabels]
-
                 coefficients = self.phiKFromTraj(self.recordBuffer - self.dim_root, self.recordLabels)
                 self.currentTrajectories.append((label[0], self.recordLabels, self.recordBuffer, coefficients))
 
@@ -517,7 +486,6 @@ class ErgodicPlanner(Node):
                         [row.tolist() + [self.recordLabels[i]] for i, row in enumerate(self.recordBuffer)]
                     )
                 self.recordBuffer = []
-                self.realPoints = []
                 self.recordLabels = []
                 self.isRecording = False
 
