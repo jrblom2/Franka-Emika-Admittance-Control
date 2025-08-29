@@ -93,6 +93,8 @@ after building and sourcing the project on a different machine from the robot.
 `data_interfaces`: contains `Robot` msg type used by the `/robot_data` topic. This type is a huge grab bag for all of the data we desire from the robot.
 
 ## Credit
+Muchen Sun for his ergodic control sandbox:
+["Sun", "Murphey"], Max muchen. (2024). Ergodic Control Sandbox (Version 0.0.1) [Computer software]. https://github.com/MurpheyLab/ergodic-control-sandbox
 
 F/T sensor integration code was stripped down and modified based on Grzegorz Bartyzel's project here:
 
