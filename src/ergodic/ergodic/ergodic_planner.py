@@ -1,25 +1,20 @@
-import time
+import csv
 import math
+import threading
+from enum import Enum, auto
 
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import rclpy
 from geometry_msgs.msg._point import Point
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.node import Node
 from std_srvs.srv import SetBool
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
-
-from scipy.stats import multivariate_normal as mvn
 
 from data_interfaces.msg import Robot
 from ergodic.sandbox import iLQR_ergodic_pointmass
-import threading
-from enum import auto, Enum
-import csv
-import colorsys
-
-import matplotlib.cm as cm
-import matplotlib.colors as mcolors
 
 np.set_printoptions(precision=4)
 rng = np.random.default_rng(1)
@@ -29,6 +24,7 @@ norm = mcolors.Normalize(vmin=-1, vmax=1)
 
 
 def normalize_labels(labelList):
+    """Normalize negative labels in a list to a range between -1 and 0, keeping 1 unchanged."""
     negatives = [val for val in labelList if val < 0]
 
     if negatives:
@@ -427,6 +423,7 @@ class ErgodicPlanner(Node):
             print('  shutdown - Stop app        | clear   - Clear trajectories')
             print('  moving   - Start movement  | record  - Record a trajectory')
             print('  load     - Load trajectory | plan    - Run ergodic planner')
+            print('  stop     - Stop movement')
             user_input = input('Enter state: ').strip().lower()
 
             # kill the app

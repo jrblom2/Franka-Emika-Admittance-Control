@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
   std::string config_name{argv[1]};
   std::string ros2_publish{argv[2]};
 
-  std::string package_share_dir = ament_index_cpp::get_package_share_directory("controllers");
+  std::string package_share_dir = ament_index_cpp::get_package_share_directory("franka_interaction");
   std::string config_path = package_share_dir + "/config/config.json";
   std::ifstream f(config_path);
   
@@ -214,30 +214,6 @@ int main(int argc, char** argv) {
         return fext_dummy;
 
     };
-    // auto fext_func = [&](double t) -> Eigen::Matrix<double, 6, 1> {
-    //   Eigen::Matrix<double, 6, 1> fext_dummy;
-
-    //   // Chirp parameters
-    //   double f0 = 0.1;      // Start frequency (Hz)
-    //   double f1 = 10.0;      // End frequency (Hz)
-    //   double T = 30.0;      // Chirp duration (seconds)
-    //   double k = (f1 - f0) / T;
-
-    //   // Compute chirp phase: φ(t) = 2π(f0 * t + 0.5 * k * t^2)
-    //   double phi = 2 * M_PI * (f0 * t + 0.5 * k * t * t);
-
-    //   // Chirp amplitude (optional scaling)
-    //   double amplitude = 3.0;
-
-    //   fext_dummy << amplitude * std::sin(phi),
-    //                 0.0,
-    //                 0.0,
-    //                 0.0,
-    //                 0.0,
-    //                 0.0;
-
-    //   return fext_dummy;
-    // };
 
     Eigen::Matrix<double, 6, 1> x0_vec;
     x0_vec << position_d, 0.0, 0.0, 0.0;
@@ -484,7 +460,7 @@ int main(int argc, char** argv) {
       }
       fullCount++;
 
-      if (count == 1) {
+      if (count == 10) {
         queue_package new_package;
         new_package.desired_accel = ddx_d;
         new_package.actual_wrench = base_fext;

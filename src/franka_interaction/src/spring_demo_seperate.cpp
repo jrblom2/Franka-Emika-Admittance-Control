@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
 
   std::string ros2_publish{argv[2]};
 
-  std::string package_share_dir = ament_index_cpp::get_package_share_directory("controllers");
+  std::string package_share_dir = ament_index_cpp::get_package_share_directory("franka_interaction");
   std::string config_path = package_share_dir + "/config/config.json";
   std::ifstream f(config_path);
   

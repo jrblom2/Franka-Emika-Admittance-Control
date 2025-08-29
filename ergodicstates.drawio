@@ -1,0 +1,115 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0" version="28.1.2">
+  <diagram name="Page-1" id="FyZv_0k2ae3T6OvjTdy5">
+    <mxGraphModel dx="1360" dy="765" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="MU9LryJr6_LOTabeKuDI-26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="MU9LryJr6_LOTabeKuDI-4">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="680" y="150" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-27" value="Stop" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MU9LryJr6_LOTabeKuDI-26">
+          <mxGeometry x="-0.1204" y="-3" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-4" value="Planning" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="245" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="MU9LryJr6_LOTabeKuDI-5" target="MU9LryJr6_LOTabeKuDI-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="MU9LryJr6_LOTabeKuDI-5">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="680" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-25" value="&lt;div&gt;Start&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MU9LryJr6_LOTabeKuDI-24">
+          <mxGeometry x="-0.0647" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-5" value="Ready" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="320" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="MU9LryJr6_LOTabeKuDI-8" target="MU9LryJr6_LOTabeKuDI-4">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="580" y="203" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-8" value="Recording" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="370" y="150" width="160" height="250" as="geometry">
+            <mxRectangle x="370" y="140" width="100" height="30" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-6" value="&lt;div&gt;Moving&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="MU9LryJr6_LOTabeKuDI-8">
+          <mxGeometry x="20" y="170" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-9" value="User Demo" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="MU9LryJr6_LOTabeKuDI-8">
+          <mxGeometry x="20" y="80" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="MU9LryJr6_LOTabeKuDI-10" target="MU9LryJr6_LOTabeKuDI-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-10" value="Idle" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="245" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-12" value="" style="endArrow=classic;html=1;rounded=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" target="MU9LryJr6_LOTabeKuDI-8">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="410" y="50" as="sourcePoint" />
+            <mxPoint x="450" y="380" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-13" value="&lt;div&gt;$$F_{sensor}$$&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MU9LryJr6_LOTabeKuDI-12">
+          <mxGeometry x="-0.025" y="-1" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-14" value="" style="endArrow=classic;html=1;rounded=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" target="MU9LryJr6_LOTabeKuDI-8">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="490" y="50" as="sourcePoint" />
+            <mxPoint x="450" y="380" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-15" value="$$q$$" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MU9LryJr6_LOTabeKuDI-14">
+          <mxGeometry x="-0.0889" y="-2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-16" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="MU9LryJr6_LOTabeKuDI-6">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="430" as="sourcePoint" />
+            <mxPoint x="450" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-17" value="$$F_{ergodic}$$" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="MU9LryJr6_LOTabeKuDI-16">
+          <mxGeometry x="0.16" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-19" value="" style="endArrow=classic;html=1;rounded=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="MU9LryJr6_LOTabeKuDI-4" target="MU9LryJr6_LOTabeKuDI-5">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="430" as="sourcePoint" />
+            <mxPoint x="450" y="380" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="MU9LryJr6_LOTabeKuDI-6" target="MU9LryJr6_LOTabeKuDI-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-28" value="User Record /&lt;br&gt;User Load" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="251" y="235" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-30" value="Traj Finished /&lt;br&gt;User Plan" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="525" y="235" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-31" value="Next Traj /&lt;br&gt;User Start" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="535" y="313" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="MU9LryJr6_LOTabeKuDI-32" value="User Stop" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="251" y="320" width="80" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
