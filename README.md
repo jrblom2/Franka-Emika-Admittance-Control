@@ -3,7 +3,7 @@ This repository contains packages to perform basic admitance control using a Fra
 
 ROS2 is used primarily to transfer data between control systems.
 
-<img width="968" height="876" alt="controller drawio(2)" src="https://github.com/user-attachments/assets/9eadc783-8313-49a7-a5e6-b86a8219c7bb" />
+<img alt="controller drawio(2)" src="./assets/ergodic.drawio.svg" />
 
 
 ## Setup
@@ -19,6 +19,7 @@ https://www.ati-ia.com/products/ft/ft_models.aspx?id=Axia80-M8
 ## Workflow
 1. Run ```./move.sh``` to copy project files to project directory on workstation. Mush have SSH key added to workstation otherwise you might be prompted.
 2. On workstation, run ```colcon build``` to build the project in the space it will be run.
+4. You must create a directory on the host machine named `data`.
 3. ```./pull_data {data_dir}``` can be used to pull the data logs and plot them from the remote, "latest" can be provided in place of the directory to get the most recent execution logs.
 
 ## Running
@@ -32,13 +33,15 @@ Run the franka control executables with
 
  ```ros2 run franka_interaction <executable>```
 
-Available executables are as follows and all require the robot IP:
-
-`admittance {config_name} {ROS_publish?}`: the primary point of the project. Sets up sensor and uses data to perform admittance control. The name of a config to control the behavior must be specified as well as whether or not data should additionally be published over ROS. May impact performance at high Hz, values are "TRUE" or "FALSE".
+Available executables are as follows and all except admittance require the robot IP:
 
 `white_light`: impedance control example
 
 `cartesian_impedance_control`: impedance control example with pose tracking using spring-damper controls.
+
+`admittance {config_name} {ROS_publish?}`: the primary point of the project. Sets up sensor and uses data to perform admittance control. The name of a config to control the behavior must be specified as well as whether or not data should additionally be published over ROS. May impact performance at high Hz, values are "TRUE" or "FALSE".
+
+<img alt="controller drawio(2)" src="./assets/admittance_controller.drawio.svg" />
 
 ### Ergodic planner
 With the admittance executable running on the robot control box with ROS_publish set to TRUE, the ergodic interface can be run with
@@ -55,6 +58,8 @@ from another computer. This will pull up a blank representation of the robots ta
 | `record`   | Record a trajectory     |
 | `load`     | Load a trajectory       |
 | `plan`     | Run the ergodic planner |
+
+<img alt="controller drawio(2)" src="./assets/ergodicstates.drawio.svg" />
 
 A typical work flow might be to `record` a trajectory, `plan` a route through the resulting space, and then get the robot `moving` along it. In its current configuraiton the system will label neutral or Z-positivly forced points as constructive and negativly forced points as destructive.
 
