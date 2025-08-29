@@ -161,7 +161,7 @@ class ErgodicPlanner(Node):
         plt.ion()
         self.fig = plt.figure(figsize=(20, 20), constrained_layout=True)
         self.ax = self.fig.add_subplot(1, 1, 1)
-        self.colorbar = None
+        self.colorbar = self.fig.colorbar(None, ax=self.ax)
         self.input_thread.start()
 
     def phiKFromTraj(self, x_traj, labels):
@@ -202,8 +202,6 @@ class ErgodicPlanner(Node):
 
             pdf_recon += phik * fk_vals
 
-        pdf_recon = np.maximum(pdf_recon, 0)
-        pdf_recon /= np.sum(pdf_recon) * self.dx * self.dy
         self.pdf_recon = pdf_recon
 
         # Trajectory optimizer setup
@@ -286,25 +284,12 @@ class ErgodicPlanner(Node):
         if self.state == State.READY or self.state == State.MOVING:
             contour = ax.contourf(grids_x, grids_y, pdf_vals.reshape(grids_x.shape), cmap='coolwarm')
 
-            if self.colorbar is None:
-                self.colorbar = self.fig.colorbar(contour, ax=ax)
-            else:
-                self.colorbar.mappable.set_array(contour.collections[0].get_array())
-                self.colorbar.update_normal(contour)
-            # ax.plot(
-            #     self.init_x_traj[:, 0] + dim_root[0],
-            #     self.init_x_traj[:, 1] + dim_root[1],
-            #     linestyle='-',
-            #     marker='o',
-            #     markersize=2,
-            #     color='green',
-            #     linewidth=2,
-            #     alpha=1.0,
-            #     label='Initial Trajectory',
-            # )
+            self.colorbar.mappable.set_array(contour.collections[0].get_array())
+            self.colorbar.update_normal(contour)
+
             ax.plot(
-                self.x_traj[:, 0] + dim_root[0],
-                self.x_traj[:, 1] + dim_root[1],
+                self.x_traj[:60, 0] + dim_root[0],
+                self.x_traj[:60, 1] + dim_root[1],
                 linestyle='-',
                 marker='o',
                 color='k',
@@ -327,11 +312,6 @@ class ErgodicPlanner(Node):
                     color = cmap(norm(label))
 
                     ax.plot([linex0, linex1], [liney0, liney1], linestyle='-', linewidth=2, color=color, alpha=1.0)
-            # for i, traj in enumerate(self.currentTrajectories):
-            #     trajX, trajY = zip(*self.currentTrajectories[-1][2])
-            #     hue = (0.3 + i * 0.1) % 1.0
-            #     r, g, b = colorsys.hsv_to_rgb(hue, 0.9, 0.9)
-            #     ax.plot(trajX, trajY, linestyle='-', linewidth=2, color=(r, g, b), alpha=1.0, label=traj[0])
 
         # If there is any recording going on, show it
         if len(self.recordBuffer) > 0:
@@ -368,7 +348,7 @@ class ErgodicPlanner(Node):
         # if we are recording and if this is a new spot, track it in buffer
         if self.isRecording:
             if len(self.recordBuffer) < 1 or np.any(
-                np.abs(self.recordBuffer[-1] - [self.position.x, self.position.y]) > 0.001
+                np.abs(self.recordBuffer[-1] - [self.position.x, self.position.y]) > 0.0005
             ):
                 self.recordBuffer.append(np.array([self.position.x, self.position.y]))
 
