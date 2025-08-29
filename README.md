@@ -1,7 +1,7 @@
-# Franka-Emika-Admittance-Control
-This repository contains code to perform basic admitance control using a Franka Emika reasearch arm. It is structured like a ROS2 project and package, however ROS2 is not used directly for the control.
+# Shared-Learning-with-Admittance-Control
+This repository contains packages to perform basic admitance control using a Franka Emika reasearch arm as well as demonstration learning using ergodic control.
 
-ROS2 is used for the transfer of data out of the libFranka control loop to other devices on the network.
+ROS2 is used primarily to transfer data between control systems.
 
 <img width="968" height="876" alt="controller drawio(2)" src="https://github.com/user-attachments/assets/9eadc783-8313-49a7-a5e6-b86a8219c7bb" />
 
@@ -23,11 +23,12 @@ https://www.ati-ia.com/products/ft/ft_models.aspx?id=Axia80-M8
 
 ## Running
 
+### Franka Only
 Once the project is built, source it with
 
  ```source install/setup.bash```
 
-Run the executables with
+Run the franka control executables with
 
  ```ros2 run franka_interaction <executable>```
 
@@ -39,9 +40,31 @@ Available executables are as follows and all require the robot IP:
 
 `cartesian_impedance_control`: impedance control example with pose tracking using spring-damper controls.
 
+### Ergodic planner
+With the admittance executable running on the robot control box with ROS_publish set to TRUE, the ergodic interface can be run with
+
+```ros2 run ergodic ergodic_planner```
+
+from another computer. This will pull up a blank representation of the robots task space. Commands from here are as follows:
+| Command    | Description             |
+| ---------- | ----------------------- |
+| `shutdown` | Stop the application    |
+| `moving`   | Start movement          |
+| `stop`     | Stop movement           |
+| `clear`    | Clear trajectories      |
+| `record`   | Record a trajectory     |
+| `load`     | Load a trajectory       |
+| `plan`     | Run the ergodic planner |
+
+A typical work flow might be to `record` a trajectory, `plan` a route through the resulting space, and then get the robot `moving` along it. In its current configuraiton the system will label neutral or Z-positivly forced points as constructive and negativly forced points as destructive.
+
+While `moving`, the robot will record its new path (ideally with user input) and replan after adding this data to its data set. It will then continue moving until `stop` or `shutdown` are entered. 
+
+As with any franka interaction, the user stop should be present and handy at all times.
+
 ## ROS2 Integration
 
-The admittance executable can optionally publish a large selection of data over the `/robot_data` topic to allow other systems to perform analysis. The data_analysis package in this project is a simple plotting package that can be used for this analysis so long as it is run on any computer on the robots network.
+The admittance executable can optionally publish a large selection of data over the `/robot_data` topic to allow other systems to perform analysis and ergodic feedback. The data_analysis package in this project is a simple plotting package that can be used for this analysis so long as it is run on any computer on the robots network.
 
 To pull up the live plots of the robots state and the control loop torques run:
 
@@ -52,6 +75,9 @@ after building and sourcing the project on a different machine from the robot.
 ### Topics
 
 `/robot_data:data_interfaces/msg/Robot`
+
+### Services
+`/toggle_goal_usage:std_srvs.srv/SetBool`
 
 ### Packages
 

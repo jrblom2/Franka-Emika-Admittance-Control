@@ -79,7 +79,6 @@ class State(Enum):
     MOVING = auto()
     SHUTDOWN = auto()
     STOPPING = auto()
-    REPLAN = auto()
 
 
 class ErgodicPlanner(Node):
